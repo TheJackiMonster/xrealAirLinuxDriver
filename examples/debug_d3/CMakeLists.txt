@@ -9,9 +9,9 @@ add_executable(
 )
 
 target_include_directories(nrealAirDebugD3
-		BEFORE PUBLIC ${NRA_INCLUDE_DIR}
+		BEFORE PUBLIC ${NREAL_AIR_INCLUDE_DIR}
 )
 
 target_link_libraries(nrealAirDebugD3
-		${NRA_LIBRARY}
+		${NREAL_AIR_LIBRARY}
 )

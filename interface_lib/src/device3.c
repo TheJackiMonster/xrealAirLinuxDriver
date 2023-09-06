@@ -26,12 +26,13 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 
 #include <Fusion/Fusion.h>
 #include <json-c/json.h>
 
-#include <hidapi/hidapi.h>
+#include <../hidapi/hidapi/hidapi.h>
 
 #include "crc32.h"
 
@@ -65,7 +66,7 @@ static bool send_payload(device3_type* device, uint8_t size, const uint8_t* payl
 	int transferred = hid_write(device->handle, payload, payload_size);
 	
 	if (transferred != payload_size) {
-		perror("ERROR: sending payload failed\n");
+		fprintf(stderr, "ERROR: sending payload failed\n");
 		return false;
 	}
 	
@@ -89,7 +90,7 @@ static bool recv_payload(device3_type* device, uint8_t size, uint8_t* payload) {
 	}
 	
 	if (transferred != payload_size) {
-		perror("ERROR: receiving payload failed\n");
+		fprintf(stderr, "ERROR: receiving payload failed\n");
 		return false;
 	}
 	
@@ -179,7 +180,6 @@ device3_type* device3_open(device3_event_callback callback) {
 	device3_type* device = (device3_type*) malloc(sizeof(device3_type));
 	
 	if (!device) {
-		perror("Not allocated!\n");
 		return NULL;
 	}
 	
@@ -189,7 +189,6 @@ device3_type* device3_open(device3_event_callback callback) {
 	device->callback 	= callback;
 	
 	if (0 != hid_init()) {
-		perror("Not initialized!\n");
 		return device;
 	}
 
@@ -211,14 +210,12 @@ device3_type* device3_open(device3_event_callback callback) {
 	hid_free_enumeration(info);
 	
 	if (!device->handle) {
-		perror("No handle!\n");
 		return device;
 	}
 
 	device3_clear(device);
 	
 	if (!send_payload_msg(device, DEVICE3_MSG_GET_STATIC_ID, 0, NULL)) {
-		perror("Failed sending payload to get static id!\n");
 		return device;
 	}
 	
@@ -233,7 +230,6 @@ device3_type* device3_open(device3_event_callback callback) {
 	device3_reset_calibration(device);
 	
 	if (!send_payload_msg(device, DEVICE3_MSG_GET_CAL_DATA_LENGTH, 0, NULL)) {
-		perror("Failed sending payload to get calibration data length!\n");
 		return device;
 	}
 	
@@ -287,7 +283,6 @@ device3_type* device3_open(device3_event_callback callback) {
 	}
 	
 	if (!send_payload_msg_signal(device, DEVICE3_MSG_START_IMU_DATA, 0x1)) {
-		perror("Failed sending payload to start imu data stream!\n");
 		return device;
 	}
 	
@@ -304,21 +299,24 @@ device3_type* device3_open(device3_event_callback callback) {
 			.gain = 0.5f,
 			.accelerationRejection = 10.0f,
 			.magneticRejection = 20.0f,
-			.rejectionTimeout = 5 * SAMPLE_RATE, /* 5 seconds */
+			.recoveryTriggerPeriod = 5 * SAMPLE_RATE, /* 5 seconds */
 	};
 	
 	FusionAhrsSetSettings((FusionAhrs*) device->ahrs, &settings);
+
+	device->ready = true;
+
 	return device;
 }
 
 void device3_reset_calibration(device3_type* device) {
 	if (!device) {
-		perror("No device!\n");
+		fprintf(stderr, "No device!\n");
 		return;
 	}
 	
 	if (!device->calibration) {
-		perror("Not allocated!\n");
+		fprintf(stderr, "Not allocated!\n");
 		return;
 	}
 	
@@ -343,18 +341,18 @@ void device3_reset_calibration(device3_type* device) {
 
 int device3_load_calibration(device3_type* device, const char* path) {
 	if (!device) {
-		perror("No device!\n");
+		fprintf(stderr, "No device!\n");
 		return -1;
 	}
 	
 	if (!device->calibration) {
-		perror("Not allocated!\n");
+		fprintf(stderr, "Not allocated!\n");
 		return -2;
 	}
 	
 	FILE* file = fopen(path, "rb");
 	if (!file) {
-		perror("No file opened!\n");
+		fprintf(stderr, "No file opened!\n");
 		return -3;
 	}
 	
@@ -362,11 +360,11 @@ int device3_load_calibration(device3_type* device, const char* path) {
 	count = fread(device->calibration, 1, sizeof(device3_calibration_type), file);
 	
 	if (sizeof(device3_calibration_type) != count) {
-		perror("Not fully loaded!\n");
+		fprintf(stderr, "Not fully loaded!\n");
 	}
 	
 	if (0 != fclose(file)) {
-		perror("No file closed!\n");
+		fprintf(stderr, "No file closed!\n");
 		return -4;
 	}
 	
@@ -375,18 +373,18 @@ int device3_load_calibration(device3_type* device, const char* path) {
 
 int device3_save_calibration(device3_type* device, const char* path) {
 	if (!device) {
-		perror("No device!\n");
+		fprintf(stderr, "No device!\n");
 		return -1;
 	}
 	
 	if (!device->calibration) {
-		perror("Not allocated!\n");
+		fprintf(stderr, "Not allocated!\n");
 		return -2;
 	}
 	
 	FILE* file = fopen(path, "wb");
 	if (!file) {
-		perror("No file opened!\n");
+		fprintf(stderr, "No file opened!\n");
 		return -3;
 	}
 	
@@ -394,11 +392,11 @@ int device3_save_calibration(device3_type* device, const char* path) {
 	count = fwrite(device->calibration, 1, sizeof(device3_calibration_type), file);
 	
 	if (sizeof(device3_calibration_type) != count) {
-		perror("Not fully saved!\n");
+		fprintf(stderr, "Not fully saved!\n");
 	}
 	
 	if (0 != fclose(file)) {
-		perror("No file closed!\n");
+		fprintf(stderr, "No file closed!\n");
 		return -4;
 	}
 	
@@ -600,17 +598,17 @@ static void apply_calibration(const device3_type* device,
 }
 
 void device3_clear(device3_type* device) {
-	device3_read(device, 10);
+	device3_read(device, 10, true);
 }
 
 int device3_calibrate(device3_type* device, uint32_t iterations, bool gyro, bool accel, bool magnet) {
 	if (!device) {
-		perror("No device!\n");
+		fprintf(stderr, "No device!\n");
 		return -1;
 	}
 	
 	if (MAX_PACKET_SIZE != sizeof(device3_packet_type)) {
-		perror("Not proper size!\n");
+		fprintf(stderr, "Not proper size!\n");
 		return -2;
 	}
 	
@@ -633,13 +631,18 @@ int device3_calibrate(device3_type* device, uint32_t iterations, bool gyro, bool
 			(uint8_t*) &packet, 
 			MAX_PACKET_SIZE
 		);
-		
+
+		if (transferred == -1) {
+			fprintf(stderr, "HID read error: device may be unplugged\n");
+			return -5;
+		}
+
 		if (transferred == 0) {
 			continue;
 		}
-		
+
 		if (MAX_PACKET_SIZE != transferred) {
-			perror("Not expected issue!\n");
+			fprintf(stderr, "HID read error: unexpected packet size\n");
 			return -3;
 		}
 		
@@ -714,14 +717,18 @@ int device3_calibrate(device3_type* device, uint32_t iterations, bool gyro, bool
 	return 0;
 }
 
-int device3_read(device3_type* device, int timeout) {
-	if (!device) {
-		perror("No device!\n");
+int device3_read(device3_type* device, int timeout, bool silent) {
+	if (!device || !device->ready) {
+		if (!silent) {
+			fprintf(stderr, "No device!\n");
+		}
 		return -1;
 	}
 	
 	if (MAX_PACKET_SIZE != sizeof(device3_packet_type)) {
-		perror("Not proper size!\n");
+		if (!silent) {
+			fprintf(stderr, "Not proper size!\n");
+		}
 		return -2;
 	}
 	
@@ -734,13 +741,22 @@ int device3_read(device3_type* device, int timeout) {
 		MAX_PACKET_SIZE,
 		timeout
 	);
+
+	if (transferred == -1) {
+		if (!silent) {
+			fprintf(stderr, "HID read error: device may be unplugged\n");
+		}
+		return -5;
+	}
 	
 	if (transferred == 0) {
 		return 1;
 	}
 	
 	if (MAX_PACKET_SIZE != transferred) {
-		perror("Not expected issue!\n");
+		if (!silent) {
+			fprintf(stderr, "HID read error: unexpected packet size\n");
+		}
 		return -3;
 	}
 	
@@ -752,7 +768,9 @@ int device3_read(device3_type* device, int timeout) {
 	}
 	
 	if ((packet.signature[0] != 0x01) || (packet.signature[1] != 0x02)) {
-		perror("Not matching signature!\n");
+		if (!silent) {
+			fprintf(stderr, "Mismatched signature! Try unplugging then replugging your device.\n");
+		}
 		return -4;
 	}
 	
@@ -782,8 +800,16 @@ int device3_read(device3_type* device, int timeout) {
 	//printf("M: %.2f %.2f %.2f\n", magnetometer.axis.x, magnetometer.axis.y, magnetometer.axis.z);
 	
 	if (device->ahrs) {
-		FusionAhrsUpdate((FusionAhrs*) device->ahrs, gyroscope, accelerometer, magnetometer, deltaTime);
-		//FusionAhrsUpdateNoMagnetometer((FusionAhrs*) device->ahrs, gyroscope, accelerometer, deltaTime);
+		FusionAhrsUpdateNoMagnetometer((FusionAhrs*) device->ahrs, gyroscope, accelerometer, deltaTime);
+
+		// TODO: fix detection of this case; quat.x as a nan value is only a side-effect of some issue with ahrs or
+		//       the gyro/accel/magnet readings
+		if (isnan(device3_get_orientation(device->ahrs).x)) {
+			if (!silent) {
+				fprintf(stderr, "Invalid device reading\n");
+			}
+			return -5;
+		}
 	}
 	
 	device3_callback(device, timestamp, DEVICE3_EVENT_UPDATE);
@@ -834,7 +860,6 @@ device3_vec3_type device3_get_euler(device3_quat_type quat) {
 
 void device3_close(device3_type* device) {
 	if (!device) {
-		perror("No device!\n");
 		return;
 	}
 	
