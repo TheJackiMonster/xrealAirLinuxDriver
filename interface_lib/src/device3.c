@@ -616,10 +616,15 @@ int device3_calibrate(device3_type* device, uint32_t iterations, bool gyro, bool
 		device3_error("No device");
 		return -1;
 	}
+
+	if (!device->handle) {
+		device3_error("No handle");
+		return -2;
+	}
 	
 	if (MAX_PACKET_SIZE != sizeof(device3_packet_type)) {
 		device3_error("Not proper size");
-		return -2;
+		return -3;
 	}
 	
 	device3_packet_type packet;
@@ -643,8 +648,8 @@ int device3_calibrate(device3_type* device, uint32_t iterations, bool gyro, bool
 		);
 
 		if (transferred == -1) {
-			fprintf(stderr, "HID read error: device may be unplugged\n");
-			return -3;
+			fprintf(stderr, "Device may be unplugged");
+			return -4;
 		}
 
 		if (transferred == 0) {
@@ -653,7 +658,7 @@ int device3_calibrate(device3_type* device, uint32_t iterations, bool gyro, bool
 
 		if (MAX_PACKET_SIZE != transferred) {
 			device3_error("Not expected issue");
-			return -4;
+			return -5;
 		}
 		
 		if ((packet.signature[0] != 0x01) || (packet.signature[1] != 0x02)) {
