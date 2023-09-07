@@ -107,7 +107,7 @@ enum device4_error_t {
 	DEVICE4_ERROR_UNEXPECTED = 6,
 	DEVICE4_ERROR_WRONG_HEAD = 7,
 	DEVICE4_ERROR_INVALID_LENGTH = 8,
-	DEVICE4_ERROR_UNKNOWN = 8,
+	DEVICE4_ERROR_UNKNOWN = 9,
 };
 
 struct __attribute__((__packed__)) device4_packet_t {
