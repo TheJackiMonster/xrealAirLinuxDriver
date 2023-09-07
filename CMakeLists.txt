@@ -11,13 +11,9 @@ add_executable(nrealAirLinuxDriver
 )
 
 target_include_directories(nrealAirLinuxDriver
-		SYSTEM BEFORE PRIVATE ${FUSION_INCLUDE_DIR}
-)
-
-target_include_directories(nrealAirLinuxDriver
 		BEFORE PUBLIC ${NREAL_AIR_INCLUDE_DIR}
 )
 
 target_link_libraries(nrealAirLinuxDriver
-		${NREAL_AIR_LIBRARY} ${FUSION_LIBRARY}
+		${NREAL_AIR_LIBRARY}
 )
