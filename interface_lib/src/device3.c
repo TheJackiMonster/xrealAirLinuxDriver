@@ -648,7 +648,7 @@ int device3_calibrate(device3_type* device, uint32_t iterations, bool gyro, bool
 		);
 
 		if (transferred == -1) {
-			fprintf(stderr, "Device may be unplugged");
+			device3_error("Device may be unplugged");
 			return -4;
 		}
 
