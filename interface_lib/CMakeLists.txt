@@ -6,6 +6,10 @@ set(CMAKE_C_STANDARD 17)
 find_package(hidapi REQUIRED)
 find_package(json-c REQUIRED)
 
+add_subdirectory(modules/Fusion/Fusion)
+set(FUSION_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/modules/Fusion)
+set(FUSION_LIBRARY Fusion)
+
 add_library(
 		nrealAirLibrary
 		src/crc32.c
