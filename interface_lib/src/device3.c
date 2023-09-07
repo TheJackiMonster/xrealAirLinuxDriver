@@ -644,7 +644,7 @@ int device3_calibrate(device3_type* device, uint32_t iterations, bool gyro, bool
 
 		if (transferred == -1) {
 			fprintf(stderr, "HID read error: device may be unplugged\n");
-			return -5;
+			return -3;
 		}
 
 		if (transferred == 0) {
@@ -653,7 +653,7 @@ int device3_calibrate(device3_type* device, uint32_t iterations, bool gyro, bool
 
 		if (MAX_PACKET_SIZE != transferred) {
 			device3_error("Not expected issue");
-			return -3;
+			return -4;
 		}
 		
 		if ((packet.signature[0] != 0x01) || (packet.signature[1] != 0x02)) {
