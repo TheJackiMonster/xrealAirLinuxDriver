@@ -35,6 +35,12 @@
 
 #include "crc32.h"
 
+#ifndef NDEBUG
+#define device4_error(msg) fprintf(stderr, "ERROR: %s\n", msg)
+#else
+#define device4_error(msg) (0)
+#endif
+
 #define MAX_PACKET_SIZE 64
 #define PACKET_HEAD 0xFD
 
@@ -47,7 +53,7 @@ static bool send_payload(device4_type* device, uint8_t size, const uint8_t* payl
 	int transferred = hid_write(device->handle, payload, payload_size);
 	
 	if (transferred != payload_size) {
-		perror("ERROR: sending payload failed\n");
+		device4_error("Sending payload failed");
 		return false;
 	}
 	
@@ -71,7 +77,7 @@ static bool recv_payload(device4_type* device, uint8_t size, uint8_t* payload) {
 	}
 	
 	if (transferred != payload_size) {
-		perror("ERROR: receiving payload failed\n");
+		device4_error("Receiving payload failed");
 		return false;
 	}
 	
@@ -111,19 +117,19 @@ static bool recv_payload_msg(device4_type* device, uint16_t msgid, uint8_t len, 
 	}
 
 	if (packet.head != PACKET_HEAD) {
-		perror("ERROR: invalid payload received\n");
+		device4_error("Invalid payload received");
 		return false;
 	}
 	
 	if (packet.msgid != msgid) {
-		perror("ERROR: unexpected payload received\n");
+		device4_error("Unexpected payload received");
 		return false;
 	}
 
 	const uint8_t status = packet.data[0];
 	
 	if (status != 0) {
-		perror("ERROR: payload status failed\n");
+		device4_error("Payload status failed");
 		return false;
 	}
 
@@ -156,7 +162,6 @@ static bool do_payload_action(device4_type* device, uint16_t msgid, uint8_t len,
 		attempts--;
 	}
 
-	perror("ERROR: payload status failed\n");
 	return false;
 }
 
@@ -164,7 +169,7 @@ device4_type* device4_open(device4_event_callback callback) {
 	device4_type* device = (device4_type*) malloc(sizeof(device4_type));
 	
 	if (!device) {
-		perror("Not allocated!\n");
+		device4_error("Not allocated");
 		return NULL;
 	}
 	
@@ -174,7 +179,7 @@ device4_type* device4_open(device4_event_callback callback) {
 	device->callback 	= callback;
 
 	if (0 != hid_init()) {
-		perror("Not initialized!\n");
+		device4_error("Not initialized");
 		return device;
 	}
 
@@ -196,57 +201,57 @@ device4_type* device4_open(device4_event_callback callback) {
 	hid_free_enumeration(info);
 
 	if (!device->handle) {
-		perror("No handle!\n");
+		device4_error("No handle");
 		return device;
 	}
 
 	device4_clear(device);
 
 	if (!send_payload_action(device, DEVICE4_MSG_R_ACTIVATION_TIME, 0, NULL)) {
-		perror("Requesting activation time failed!\n");
+		device4_error("Requesting activation time failed");
 		return device;
 	}
 
 	uint8_t activated;
 	if (!recv_payload_msg(device, DEVICE4_MSG_R_ACTIVATION_TIME, 1, &activated)) {
-		perror("Receiving activation time failed!\n");
+		device4_error("Receiving activation time failed");
 		return device;
 	}
 
 	device->activated = (activated != 0);
 
 	if (!device->activated) {
-		perror("Device is not activated!\n");
+		device4_error("Device is not activated");
 		return device;
 	}
 
 	if (!send_payload_action(device, DEVICE4_MSG_R_MCU_APP_FW_VERSION, 0, NULL)) {
-		perror("Requesting current MCU app firmware version!\n");
+		device4_error("Requesting current MCU app firmware version");
 		return device;
 	}
 
 	if (!recv_payload_msg(device, DEVICE4_MSG_R_MCU_APP_FW_VERSION, 41, (uint8_t*) device->mcu_app_fw_version)) {
-		perror("Receiving current MCU app firmware version failed!\n");
+		device4_error("Receiving current MCU app firmware version failed");
 		return device;
 	}
 
 	if (!send_payload_action(device, DEVICE4_MSG_R_DP7911_FW_VERSION, 0, NULL)) {
-		perror("Requesting current DP firmware version!\n");
+		device4_error("Requesting current DP firmware version");
 		return device;
 	}
 
 	if (!recv_payload_msg(device, DEVICE4_MSG_R_DP7911_FW_VERSION, 41, (uint8_t*) device->dp_fw_version)) {
-		perror("Receiving current DP firmware version failed!\n");
+		device4_error("Receiving current DP firmware version failed");
 		return device;
 	}
 
 	if (!send_payload_action(device, DEVICE4_MSG_R_DSP_APP_FW_VERSION, 0, NULL)) {
-		perror("Requesting current DSP app firmware version!\n");
+		device4_error("Requesting current DSP app firmware version");
 		return device;
 	}
 
 	if (!recv_payload_msg(device, DEVICE4_MSG_R_DSP_APP_FW_VERSION, 41, (uint8_t*) device->dsp_fw_version)) {
-		perror("Receiving current DSP app firmware version failed!\n");
+		device4_error("Receiving current DSP app firmware version failed");
 		return device;
 	}
 
@@ -257,22 +262,22 @@ device4_type* device4_open(device4_event_callback callback) {
 #endif
 
 	if (!send_payload_action(device, DEVICE4_MSG_R_BRIGHTNESS, 0, NULL)) {
-		perror("Requesting initial brightness failed!\n");
+		device4_error("Requesting initial brightness failed");
 		return device;
 	}
 
 	if (!recv_payload_msg(device, DEVICE4_MSG_R_BRIGHTNESS, 1, &device->brightness)) {
-		perror("Receiving initial brightness failed!\n");
+		device4_error("Receiving initial brightness failed");
 		return device;
 	}
 
 	if (!send_payload_action(device, DEVICE4_MSG_R_DISP_MODE, 0, NULL)) {
-		perror("Requesting display mode failed!\n");
+		device4_error("Requesting display mode failed");
 		return device;
 	}
 
 	if (!recv_payload_msg(device, DEVICE4_MSG_R_DISP_MODE, 1, &device->disp_mode)) {
-		perror("Receiving display mode failed!\n");
+		device4_error("Receiving display mode failed");
 		return device;
 	}
 
@@ -301,13 +306,19 @@ void device4_clear(device4_type* device) {
 }
 
 int device4_read(device4_type* device, int timeout) {
-	if ((!device) || (!device->handle)) {
+	if (!device) {
+		device4_error("No device");
 		return -1;
+	}
+
+	if (!device->handle) {
+		device4_error("No handle");
+		return -2;
 	}
 	
 	if (MAX_PACKET_SIZE != sizeof(device4_packet_type)) {
-		perror("Not proper size!\n");
-		return -2;
+		device4_error("Not proper size");
+		return -3;
 	}
 	
 	device4_packet_type packet;
@@ -325,13 +336,13 @@ int device4_read(device4_type* device, int timeout) {
 	}
 	
 	if (MAX_PACKET_SIZE != transferred) {
-		perror("Reading failed!\n");
-		return -3;
+		device4_error("Reading failed");
+		return -4;
 	}
 
 	if (packet.head != PACKET_HEAD) {
-		perror("Wrong packet!\n");
-		return -4;
+		device4_error("Wrong packet");
+		return -5;
 	}
 
 	const uint32_t timestamp = packet.timestamp;
@@ -415,8 +426,8 @@ int device4_read(device4_type* device, int timeout) {
 			device->active = true;
 			
 			if (data_len + text_len != packet.length) {
-				perror("Not matching length!\n");
-				return -5;
+				device4_error("Not matching length");
+				return -6;
 			}
 			
 			device4_callback(
@@ -451,7 +462,7 @@ bool device4_update_mcu_firmware(device4_type* device, const char* path) {
 	}
 
 	if (!device->activated) {
-		perror("Device is not activated!\n");
+		device4_error("Device is not activated");
 		return false;
 	}
 
@@ -478,28 +489,28 @@ bool device4_update_mcu_firmware(device4_type* device, const char* path) {
 	printf("Prepare upload: %lu\n", firmware_len);
 
 	if (!do_payload_action(device, DEVICE4_MSG_W_UPDATE_MCU_APP_FW_PREPARE, 0, NULL)) {
-		perror("Failed preparing the device for MCU firmware update!\n");
+		device4_error("Failed preparing the device for MCU firmware update!\n");
 		goto cleanup;
 	}
 
 	if (!do_payload_action(device, DEVICE4_MSG_W_MCU_APP_JUMP_TO_BOOT, 0, NULL)) {
-		perror("Failed mcu app jumping to boot!\n");
+		device4_error("Failed mcu app jumping to boot");
 		goto cleanup;
 	}
 
 	if (!send_payload_action(device, DEVICE4_MSG_R_ACTIVATION_TIME, 0, NULL)) {
-		perror("Requesting activation time failed!\n");
+		device4_error("Requesting activation time failed");
 		return device;
 	}
 
 	uint8_t activated;
 	if (!recv_payload_msg(device, DEVICE4_MSG_R_ACTIVATION_TIME, 1, &activated)) {
-		perror("Receiving activation time failed!\n");
+		device4_error("Receiving activation time failed");
 		return device;
 	}
 
 	if (!activated) {
-		perror("Device is not activated!\n");
+		device4_error("Device is not activated");
 		goto jump_to_app;
 	}
 
@@ -521,17 +532,17 @@ bool device4_update_mcu_firmware(device4_type* device, const char* path) {
 		}
 
 		if (!do_payload_action(device, msgid, len, firmware + offset)) {
-			perror("Failed sending firmware upload!\n");
+			device4_error("Failed sending firmware upload");
 			goto jump_to_app;
 		}
 
 		offset += len;
 	}
 
-	printf("Finish upload!\n");
+	printf("Finish upload");
 
 	if (!do_payload_action(device, DEVICE4_MSG_W_UPDATE_MCU_APP_FW_FINISH, 0, NULL)) {
-		perror("Failed finishing firmware upload!\n");
+		device4_error("Failed finishing firmware upload");
 		goto jump_to_app;
 	}
 
@@ -539,7 +550,7 @@ bool device4_update_mcu_firmware(device4_type* device, const char* path) {
 
 jump_to_app:
 	if (!do_payload_action(device, DEVICE4_MSG_W_BOOT_JUMP_TO_APP, 0, NULL)) {
-		perror("Failed boot jumping back to app!\n");
+		device4_error("Failed boot jumping back to app");
 		goto cleanup;
 	}
 
