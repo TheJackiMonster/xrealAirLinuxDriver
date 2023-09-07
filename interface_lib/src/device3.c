@@ -810,6 +810,8 @@ int device3_read(device3_type* device, int timeout) {
 	//printf("M: %.2f %.2f %.2f\n", magnetometer.axis.x, magnetometer.axis.y, magnetometer.axis.z);
 	
 	if (device->ahrs) {
+		/* The magnetometer seems to make results of sensor fusion generally worse. So it is not used currently. */
+		//FusionAhrsUpdate((FusionAhrs*) device->ahrs, gyroscope, accelerometer, magnetometer, deltaTime);
 		FusionAhrsUpdateNoMagnetometer((FusionAhrs*) device->ahrs, gyroscope, accelerometer, deltaTime);
 
 		const device3_quat_type orientation = device3_get_orientation(device->ahrs);
