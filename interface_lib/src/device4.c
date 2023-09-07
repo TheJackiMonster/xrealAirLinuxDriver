@@ -111,16 +111,19 @@ static bool recv_payload_msg(device4_type* device, uint16_t msgid, uint8_t len, 
 	}
 
 	if (packet.head != PACKET_HEAD) {
+		perror("ERROR: invalid payload received\n");
 		return false;
 	}
 	
 	if (packet.msgid != msgid) {
+		perror("ERROR: unexpected payload received\n");
 		return false;
 	}
-	
-	const uint8_t status = packet.data[0];
 
+	const uint8_t status = packet.data[0];
+	
 	if (status != 0) {
+		perror("ERROR: payload status failed\n");
 		return false;
 	}
 
@@ -153,6 +156,7 @@ static bool do_payload_action(device4_type* device, uint16_t msgid, uint8_t len,
 		attempts--;
 	}
 
+	perror("ERROR: payload status failed\n");
 	return false;
 }
 
@@ -483,6 +487,22 @@ bool device4_update_mcu_firmware(device4_type* device, const char* path) {
 		goto cleanup;
 	}
 
+	if (!send_payload_action(device, DEVICE4_MSG_R_ACTIVATION_TIME, 0, NULL)) {
+		perror("Requesting activation time failed!\n");
+		return device;
+	}
+
+	uint8_t activated;
+	if (!recv_payload_msg(device, DEVICE4_MSG_R_ACTIVATION_TIME, 1, &activated)) {
+		perror("Receiving activation time failed!\n");
+		return device;
+	}
+
+	if (!activated) {
+		perror("Device is not activated!\n");
+		goto jump_to_app;
+	}
+
 	size_t offset = 0;
 
 	while (offset < firmware_len) {
@@ -500,10 +520,12 @@ bool device4_update_mcu_firmware(device4_type* device, const char* path) {
 			msgid = DEVICE4_MSG_W_UPDATE_MCU_APP_FW_TRANSMIT;
 		}
 
-		if (!do_payload_action(device, msgid, len, firmware)) {
+		if (!do_payload_action(device, msgid, len, firmware + offset)) {
 			perror("Failed sending firmware upload!\n");
 			goto jump_to_app;
 		}
+
+		offset += len;
 	}
 
 	printf("Finish upload!\n");

@@ -239,7 +239,7 @@ device3_type* device3_open(device3_event_callback callback) {
 	
 	uint32_t calibration_len = 0;
 	if (recv_payload_msg(device, DEVICE3_MSG_GET_CAL_DATA_LENGTH, 4, (uint8_t*) &calibration_len)) {
-		char* calibration_data = malloc(calibration_len);
+		char* calibration_data = malloc(calibration_len + 1);
 		
 		uint32_t position = 0;
 		while (position < calibration_len) {
@@ -257,6 +257,8 @@ device3_type* device3_open(device3_event_callback callback) {
 			
 			position += next;
 		}
+
+		calibration_data[calibration_len] = '\0';
 		
 		struct json_tokener* tokener = json_tokener_new();
 		struct json_object* root = json_tokener_parse_ex(tokener, calibration_data, calibration_len);
