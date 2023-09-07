@@ -26,7 +26,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 
 #include <Fusion/Fusion.h>
@@ -317,7 +316,6 @@ device3_type* device3_open(device3_event_callback callback) {
 	};
 	
 	FusionAhrsSetSettings((FusionAhrs*) device->ahrs, &settings);
-
 	return device;
 }
 
@@ -610,7 +608,7 @@ static void apply_calibration(const device3_type* device,
 }
 
 void device3_clear(device3_type* device) {
-	device3_read(device, 10, true);
+	device3_read(device, 10);
 }
 
 int device3_calibrate(device3_type* device, uint32_t iterations, bool gyro, bool accel, bool magnet) {

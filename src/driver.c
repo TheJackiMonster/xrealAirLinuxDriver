@@ -106,7 +106,7 @@ int main(int argc, const char** argv) {
 		device3_clear(dev3);
 		
 		while (dev3) {
-			if (device3_read(dev3, 0, false) < 0) {
+			if (device3_read(dev3, 0) < 0) {
 				break;
 			}
 		}
