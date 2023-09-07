@@ -9,9 +9,9 @@ add_executable(
 )
 
 target_include_directories(nrealAirUpgradeMCU
-		BEFORE PUBLIC ${NRA_INCLUDE_DIR}
+		BEFORE PUBLIC ${NREAL_AIR_INCLUDE_DIR}
 )
 
 target_link_libraries(nrealAirUpgradeMCU
-		${NRA_LIBRARY}
+		${NREAL_AIR_LIBRARY}
 )

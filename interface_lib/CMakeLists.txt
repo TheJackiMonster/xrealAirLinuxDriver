@@ -15,6 +15,8 @@ add_library(
 		src/device4.c
 )
 
+target_compile_options(nrealAirLibrary PRIVATE -fPIC)
+
 target_include_directories(nrealAirLibrary
 		BEFORE PUBLIC include
 )
@@ -26,8 +28,8 @@ target_include_directories(nrealAirLibrary
 )
 
 target_link_libraries(nrealAirLibrary
-		hidapi::hidapi json-c::json-c Fusion m
+		PRIVATE hidapi::hidapi json-c::json-c Fusion m
 )
 
-set(NRA_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include PARENT_SCOPE)
-set(NRA_LIBRARY nrealAirLibrary PARENT_SCOPE)
+set(NREAL_AIR_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include PARENT_SCOPE)
+set(NREAL_AIR_LIBRARY nrealAirLibrary PARENT_SCOPE)

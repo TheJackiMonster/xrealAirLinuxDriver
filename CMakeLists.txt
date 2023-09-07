@@ -11,9 +11,9 @@ add_executable(nrealAirLinuxDriver
 )
 
 target_include_directories(nrealAirLinuxDriver
-		BEFORE PUBLIC ${NRA_INCLUDE_DIR}
+		BEFORE PUBLIC ${NREAL_AIR_INCLUDE_DIR}
 )
 
 target_link_libraries(nrealAirLinuxDriver
-		${NRA_LIBRARY}
+		${NREAL_AIR_LIBRARY}
 )

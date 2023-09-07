@@ -616,10 +616,15 @@ int device3_calibrate(device3_type* device, uint32_t iterations, bool gyro, bool
 		device3_error("No device");
 		return -1;
 	}
+
+	if (!device->handle) {
+		device3_error("No handle");
+		return -2;
+	}
 	
 	if (MAX_PACKET_SIZE != sizeof(device3_packet_type)) {
 		device3_error("Not proper size");
-		return -2;
+		return -3;
 	}
 	
 	device3_packet_type packet;
@@ -641,14 +646,19 @@ int device3_calibrate(device3_type* device, uint32_t iterations, bool gyro, bool
 			(uint8_t*) &packet, 
 			MAX_PACKET_SIZE
 		);
-		
+
+		if (transferred == -1) {
+			device3_error("Device may be unplugged");
+			return -4;
+		}
+
 		if (transferred == 0) {
 			continue;
 		}
-		
+
 		if (MAX_PACKET_SIZE != transferred) {
 			device3_error("Not expected issue");
-			return -3;
+			return -5;
 		}
 		
 		if ((packet.signature[0] != 0x01) || (packet.signature[1] != 0x02)) {
@@ -747,14 +757,19 @@ int device3_read(device3_type* device, int timeout) {
 		MAX_PACKET_SIZE,
 		timeout
 	);
+
+	if (transferred == -1) {
+		device3_error("Device may be unplugged");
+		return -4;
+	}
 	
 	if (transferred == 0) {
 		return 1;
 	}
 	
 	if (MAX_PACKET_SIZE != transferred) {
-		device3_error("Not expected issue");
-		return -4;
+		device3_error("Unexpected packet size");
+		return -5;
 	}
 	
 	const uint64_t timestamp = packet.timestamp;
@@ -766,7 +781,7 @@ int device3_read(device3_type* device, int timeout) {
 	
 	if ((packet.signature[0] != 0x01) || (packet.signature[1] != 0x02)) {
 		device3_error("Not matching signature");
-		return -5;
+		return -6;
 	}
 	
 	const uint64_t delta = timestamp - device->last_timestamp;
@@ -795,8 +810,18 @@ int device3_read(device3_type* device, int timeout) {
 	//printf("M: %.2f %.2f %.2f\n", magnetometer.axis.x, magnetometer.axis.y, magnetometer.axis.z);
 	
 	if (device->ahrs) {
-		FusionAhrsUpdate((FusionAhrs*) device->ahrs, gyroscope, accelerometer, magnetometer, deltaTime);
-		//FusionAhrsUpdateNoMagnetometer((FusionAhrs*) device->ahrs, gyroscope, accelerometer, deltaTime);
+		/* The magnetometer seems to make results of sensor fusion generally worse. So it is not used currently. */
+		//FusionAhrsUpdate((FusionAhrs*) device->ahrs, gyroscope, accelerometer, magnetometer, deltaTime);
+		FusionAhrsUpdateNoMagnetometer((FusionAhrs*) device->ahrs, gyroscope, accelerometer, deltaTime);
+
+		const device3_quat_type orientation = device3_get_orientation(device->ahrs);
+
+		// TODO: fix detection of this case; quat.x as a nan value is only a side-effect of some issue with ahrs or
+		//       the gyro/accel/magnet readings
+		if (isnan(orientation.x) || isnan(orientation.y) || isnan(orientation.z) || isnan(orientation.w)) {
+			device3_error("Invalid orientation reading");
+			return -7;
+		}
 	}
 	
 	device3_callback(device, timestamp, DEVICE3_EVENT_UPDATE);
