@@ -319,15 +319,15 @@ device3_type* device3_open(device3_event_callback callback) {
 	return device;
 }
 
-void device3_reset_calibration(device3_type* device) {
+device3_error_type device3_reset_calibration(device3_type* device) {
 	if (!device) {
 		device3_error("No device");
-		return;
+		return DEVICE3_ERROR_NO_DEVICE;
 	}
 	
 	if (!device->calibration) {
 		device3_error("Not allocated");
-		return;
+		return DEVICE3_ERROR_NO_ALLOCATION;
 	}
 	
 	device->calibration->gyroscopeMisalignment = FUSION_IDENTITY_MATRIX;
@@ -349,68 +349,74 @@ void device3_reset_calibration(device3_type* device) {
 	device->calibration->noises.element.w = 0.0f;
 }
 
-int device3_load_calibration(device3_type* device, const char* path) {
+device3_error_type device3_load_calibration(device3_type* device, const char* path) {
 	if (!device) {
 		device3_error("No device");
-		return -1;
+		return DEVICE3_ERROR_NO_DEVICE;
 	}
 	
 	if (!device->calibration) {
 		device3_error("Not allocated");
-		return -2;
+		return DEVICE3_ERROR_NO_ALLOCATION;
 	}
 	
 	FILE* file = fopen(path, "rb");
 	if (!file) {
 		device3_error("No file opened");
-		return -3;
+		return DEVICE3_ERROR_FILE_NOT_OPEN;
 	}
+
+	device3_error_type result = DEVICE3_ERROR_NO_ERROR;
 	
 	size_t count;
 	count = fread(device->calibration, 1, sizeof(device3_calibration_type), file);
 	
 	if (sizeof(device3_calibration_type) != count) {
 		device3_error("Not fully loaded");
+		result = DEVICE3_ERROR_LOADING_FAILED;
 	}
 	
 	if (0 != fclose(file)) {
 		device3_error("No file closed");
-		return -4;
+		return DEVICE3_ERROR_FILE_NOT_CLOSED;
 	}
 	
-	return 0;
+	return result;
 }
 
-int device3_save_calibration(device3_type* device, const char* path) {
+device3_error_type device3_save_calibration(device3_type* device, const char* path) {
 	if (!device) {
 		device3_error("No device");
-		return -1;
+		return DEVICE3_ERROR_NO_DEVICE;
 	}
 	
 	if (!device->calibration) {
 		device3_error("Not allocated");
-		return -2;
+		return DEVICE3_ERROR_NO_ALLOCATION;
 	}
 	
 	FILE* file = fopen(path, "wb");
 	if (!file) {
 		device3_error("No file opened");
-		return -3;
+		return DEVICE3_ERROR_FILE_NOT_OPEN;
 	}
+
+	device3_error_type result = DEVICE3_ERROR_NO_ERROR;
 	
 	size_t count;
 	count = fwrite(device->calibration, 1, sizeof(device3_calibration_type), file);
 	
 	if (sizeof(device3_calibration_type) != count) {
 		device3_error("Not fully saved");
+		result = DEVICE3_ERROR_SAVING_FAILED;
 	}
 	
 	if (0 != fclose(file)) {
 		device3_error("No file closed");
-		return -4;
+		return DEVICE3_ERROR_FILE_NOT_CLOSED;
 	}
 	
-	return 0;
+	return result;
 }
 
 static void device3_callback(device3_type* device,
@@ -607,24 +613,24 @@ static void apply_calibration(const device3_type* device,
 	*magnetometer = FusionAxesSwap(*magnetometer, alignment);
 }
 
-void device3_clear(device3_type* device) {
-	device3_read(device, 10);
+device3_error_type device3_clear(device3_type* device) {
+	return device3_read(device, 10);
 }
 
-int device3_calibrate(device3_type* device, uint32_t iterations, bool gyro, bool accel, bool magnet) {
+device3_error_type device3_calibrate(device3_type* device, uint32_t iterations, bool gyro, bool accel, bool magnet) {
 	if (!device) {
 		device3_error("No device");
-		return -1;
+		return DEVICE3_ERROR_NO_DEVICE;
 	}
 
 	if (!device->handle) {
 		device3_error("No handle");
-		return -2;
+		return DEVICE3_ERROR_NO_HANDLE;
 	}
 	
 	if (MAX_PACKET_SIZE != sizeof(device3_packet_type)) {
 		device3_error("Not proper size");
-		return -3;
+		return DEVICE3_ERROR_WRONG_SIZE;
 	}
 	
 	device3_packet_type packet;
@@ -649,7 +655,7 @@ int device3_calibrate(device3_type* device, uint32_t iterations, bool gyro, bool
 
 		if (transferred == -1) {
 			device3_error("Device may be unplugged");
-			return -4;
+			return DEVICE3_ERROR_UNPLUGGED;
 		}
 
 		if (transferred == 0) {
@@ -657,8 +663,8 @@ int device3_calibrate(device3_type* device, uint32_t iterations, bool gyro, bool
 		}
 
 		if (MAX_PACKET_SIZE != transferred) {
-			device3_error("Not expected issue");
-			return -5;
+			device3_error("Unexpected packet size");
+			return DEVICE3_ERROR_UNEXPECTED;
 		}
 		
 		if ((packet.signature[0] != 0x01) || (packet.signature[1] != 0x02)) {
@@ -729,23 +735,23 @@ int device3_calibrate(device3_type* device, uint32_t iterations, bool gyro, bool
 		}
 	}
 	
-	return 0;
+	return DEVICE3_ERROR_NO_ERROR;
 }
 
-int device3_read(device3_type* device, int timeout) {
+device3_error_type device3_read(device3_type* device, int timeout) {
 	if (!device) {
 		device3_error("No device");
-		return -1;
+		return DEVICE3_ERROR_NO_DEVICE;
 	}
 
 	if (!device->handle) {
 		device3_error("No handle");
-		return -2;
+		return DEVICE3_ERROR_NO_HANDLE;
 	}
 	
 	if (MAX_PACKET_SIZE != sizeof(device3_packet_type)) {
 		device3_error("Not proper size");
-		return -3;
+		return DEVICE3_ERROR_WRONG_SIZE;
 	}
 	
 	device3_packet_type packet;
@@ -760,28 +766,28 @@ int device3_read(device3_type* device, int timeout) {
 
 	if (transferred == -1) {
 		device3_error("Device may be unplugged");
-		return -4;
+		return DEVICE3_ERROR_UNPLUGGED;
 	}
 	
 	if (transferred == 0) {
-		return 1;
+		return DEVICE3_ERROR_NO_ERROR;
 	}
 	
 	if (MAX_PACKET_SIZE != transferred) {
 		device3_error("Unexpected packet size");
-		return -5;
+		return DEVICE3_ERROR_UNEXPECTED;
 	}
 	
 	const uint64_t timestamp = packet.timestamp;
 	
 	if ((packet.signature[0] == 0xaa) && (packet.signature[1] == 0x53)) {
 		device3_callback(device, timestamp, DEVICE3_EVENT_INIT);
-		return 0;
+		return DEVICE3_ERROR_NO_ERROR;
 	}
 	
 	if ((packet.signature[0] != 0x01) || (packet.signature[1] != 0x02)) {
 		device3_error("Not matching signature");
-		return -6;
+		return DEVICE3_ERROR_WRONG_SIGNATURE;
 	}
 	
 	const uint64_t delta = timestamp - device->last_timestamp;
@@ -820,12 +826,12 @@ int device3_read(device3_type* device, int timeout) {
 		//       the gyro/accel/magnet readings
 		if (isnan(orientation.x) || isnan(orientation.y) || isnan(orientation.z) || isnan(orientation.w)) {
 			device3_error("Invalid orientation reading");
-			return -7;
+			return DEVICE3_ERROR_INVALID_VALUE;
 		}
 	}
 	
 	device3_callback(device, timestamp, DEVICE3_EVENT_UPDATE);
-	return 0;
+	return DEVICE3_ERROR_NO_ERROR;
 }
 
 device3_vec3_type device3_get_earth_acceleration(const device3_ahrs_type* ahrs) {
@@ -870,10 +876,10 @@ device3_vec3_type device3_get_euler(device3_quat_type quat) {
 	return e;
 }
 
-void device3_close(device3_type* device) {
+device3_error_type device3_close(device3_type* device) {
 	if (!device) {
 		device3_error("No device");
-		return;
+		return DEVICE3_ERROR_NO_DEVICE;
 	}
 	
 	if (device->calibration) {
@@ -895,4 +901,6 @@ void device3_close(device3_type* device) {
 	
 	free(device);
 	hid_exit();
+
+	return DEVICE3_ERROR_NO_ERROR;
 }

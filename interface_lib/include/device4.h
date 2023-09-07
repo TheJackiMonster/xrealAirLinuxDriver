@@ -97,6 +97,19 @@
 extern "C" {
 #endif
 
+enum device4_error_t {
+	DEVICE4_ERROR_NO_ERROR = 0,
+	DEVICE4_ERROR_NO_DEVICE = 1,
+	DEVICE4_ERROR_NO_HANDLE = 2,
+	DEVICE4_ERROR_NO_ACTIVATION = 3,
+	DEVICE4_ERROR_WRONG_SIZE = 4,
+	DEVICE4_ERROR_UNPLUGGED = 5,
+	DEVICE4_ERROR_UNEXPECTED = 6,
+	DEVICE4_ERROR_WRONG_HEAD = 7,
+	DEVICE4_ERROR_INVALID_LENGTH = 8,
+	DEVICE4_ERROR_UNKNOWN = 8,
+};
+
 struct __attribute__((__packed__)) device4_packet_t {
 	uint8_t head;
 	uint32_t checksum;
@@ -119,6 +132,7 @@ enum device4_event_t {
 	DEVICE4_EVENT_MESSAGE 			= 5,
 };
 
+typedef enum device4_error_t device4_error_type;
 typedef struct device4_packet_t device4_packet_type;
 typedef enum device4_event_t device4_event_type;
 typedef void (*device4_event_callback)(
@@ -150,13 +164,13 @@ typedef struct device4_t device4_type;
 
 device4_type* device4_open(device4_event_callback callback);
 
-void device4_clear(device4_type* device);
+device4_error_type device4_clear(device4_type* device);
 
-int device4_read(device4_type* device, int timeout);
+device4_error_type device4_read(device4_type* device, int timeout);
 
-bool device4_update_mcu_firmware(device4_type* device, const char* path);
+device4_error_type device4_update_mcu_firmware(device4_type* device, const char* path);
 
-void device4_close(device4_type* device);
+device4_error_type device4_close(device4_type* device);
 
 #ifdef __cplusplus
 } // extern "C"

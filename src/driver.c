@@ -106,7 +106,7 @@ int main(int argc, const char** argv) {
 		device3_clear(dev3);
 		
 		while (dev3) {
-			if (device3_read(dev3, 0) < 0) {
+			if (device3_read(dev3, 0) != DEVICE3_ERROR_NO_ERROR) {
 				break;
 			}
 		}
@@ -118,7 +118,7 @@ int main(int argc, const char** argv) {
 		device4_clear(dev4);
 		
 		while (dev4) {
-			if (device4_read(dev4, 0) < 0) {
+			if (device4_read(dev4, 0) != DEVICE4_ERROR_NO_ERROR) {
 				break;
 			}
 		}

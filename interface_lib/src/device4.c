@@ -301,24 +301,24 @@ static void device4_callback(device4_type* device,
 	device->callback(timestamp, event, brightness, msg);
 }
 
-void device4_clear(device4_type* device) {
-	device4_read(device, 10);
+device4_error_type device4_clear(device4_type* device) {
+	return device4_read(device, 10);
 }
 
-int device4_read(device4_type* device, int timeout) {
+device4_error_type device4_read(device4_type* device, int timeout) {
 	if (!device) {
 		device4_error("No device");
-		return -1;
+		return DEVICE4_ERROR_NO_DEVICE;
 	}
 
 	if (!device->handle) {
 		device4_error("No handle");
-		return -2;
+		return DEVICE4_ERROR_NO_HANDLE;
 	}
 	
 	if (MAX_PACKET_SIZE != sizeof(device4_packet_type)) {
 		device4_error("Not proper size");
-		return -3;
+		return DEVICE4_ERROR_WRONG_SIZE;
 	}
 	
 	device4_packet_type packet;
@@ -331,18 +331,23 @@ int device4_read(device4_type* device, int timeout) {
 			timeout
 	);
 
+	if (transferred == -1) {
+		device4_error("Device may be unplugged");
+		return DEVICE4_ERROR_UNPLUGGED;
+	}
+
 	if (transferred == 0) {
-		return 1;
+		return DEVICE4_ERROR_NO_ERROR;
 	}
 	
 	if (MAX_PACKET_SIZE != transferred) {
-		device4_error("Reading failed");
-		return -4;
+		device4_error("Unexpected packet size");
+		return DEVICE4_ERROR_UNEXPECTED;
 	}
 
 	if (packet.head != PACKET_HEAD) {
-		device4_error("Wrong packet");
-		return -5;
+		device4_error("Wrong packet head");
+		return DEVICE4_ERROR_WRONG_HEAD;
 	}
 
 	const uint32_t timestamp = packet.timestamp;
@@ -427,7 +432,7 @@ int device4_read(device4_type* device, int timeout) {
 			
 			if (data_len + text_len != packet.length) {
 				device4_error("Not matching length");
-				return -6;
+				return DEVICE4_ERROR_INVALID_LENGTH;
 			}
 			
 			device4_callback(
@@ -453,24 +458,25 @@ int device4_read(device4_type* device, int timeout) {
 			break;
 	}
 	
-	return 0;
+	return DEVICE4_ERROR_NO_ERROR;
 }
 
-bool device4_update_mcu_firmware(device4_type* device, const char* path) {
+device4_error_type device4_update_mcu_firmware(device4_type* device, const char* path) {
 	if (!device) {
-		return false;
+		device4_error("No device");
+		return DEVICE4_ERROR_NO_DEVICE;
 	}
 
 	if (!device->activated) {
 		device4_error("Device is not activated");
-		return false;
+		return DEVICE4_ERROR_NO_ACTIVATION;
 	}
 
 	size_t firmware_len = 0;
 	uint8_t* firmware = NULL;
 
 	FILE* file = fopen(path, "rb");
-	bool result = false;
+	bool result = DEVICE4_ERROR_UNKNOWN;
 
 	if (file) {
 		fseek(file, 0, SEEK_END);
@@ -500,13 +506,13 @@ bool device4_update_mcu_firmware(device4_type* device, const char* path) {
 
 	if (!send_payload_action(device, DEVICE4_MSG_R_ACTIVATION_TIME, 0, NULL)) {
 		device4_error("Requesting activation time failed");
-		return device;
+		goto cleanup;
 	}
 
 	uint8_t activated;
 	if (!recv_payload_msg(device, DEVICE4_MSG_R_ACTIVATION_TIME, 1, &activated)) {
 		device4_error("Receiving activation time failed");
-		return device;
+		goto cleanup;
 	}
 
 	if (!activated) {
@@ -546,7 +552,7 @@ bool device4_update_mcu_firmware(device4_type* device, const char* path) {
 		goto jump_to_app;
 	}
 
-	result = true;
+	result = DEVICE4_ERROR_NO_ERROR;
 
 jump_to_app:
 	if (!do_payload_action(device, DEVICE4_MSG_W_BOOT_JUMP_TO_APP, 0, NULL)) {
@@ -562,9 +568,10 @@ cleanup:
 	return result;
 }
 
-void device4_close(device4_type* device) {
+device4_error_type device4_close(device4_type* device) {
 	if (!device) {
-		return;
+		device4_error("No device");
+		return DEVICE4_ERROR_NO_DEVICE;
 	}
 	
 	if (device->handle) {
@@ -574,4 +581,6 @@ void device4_close(device4_type* device) {
 	
 	free(device);
 	hid_exit();
+
+	return DEVICE4_ERROR_NO_ERROR;
 }

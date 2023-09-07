@@ -46,6 +46,23 @@
 extern "C" {
 #endif
 
+enum device3_error_t {
+	DEVICE3_ERROR_NO_ERROR = 0,
+	DEVICE3_ERROR_NO_DEVICE = 1,
+	DEVICE3_ERROR_NO_HANDLE = 2,
+	DEVICE3_ERROR_NO_ALLOCATION = 3,
+	DEVICE3_ERROR_WRONG_SIZE = 4,
+	DEVICE3_ERROR_FILE_NOT_OPEN = 5,
+	DEVICE3_ERROR_FILE_NOT_CLOSED = 6,
+	DEVICE3_ERROR_LOADING_FAILED = 7,
+	DEVICE3_ERROR_SAVING_FAILED = 8,
+	DEVICE3_ERROR_UNPLUGGED = 9,
+	DEVICE3_ERROR_UNEXPECTED = 10,
+	DEVICE3_ERROR_WRONG_SIGNATURE = 11,
+	DEVICE3_ERROR_INVALID_VALUE = 12,
+	DEVICE3_ERROR_UNKNOWN = 13,
+};
+
 struct __attribute__((__packed__)) device3_packet_t {
 	uint8_t signature [2];
 	uint8_t temperature [2];
@@ -70,9 +87,9 @@ struct __attribute__((__packed__)) device3_packet_t {
 };
 
 enum device3_event_t {
-	DEVICE3_EVENT_UNKNOWN 			= 0,
-	DEVICE3_EVENT_INIT 				= 1,
-	DEVICE3_EVENT_UPDATE 			= 2,
+	DEVICE3_EVENT_UNKNOWN = 0,
+	DEVICE3_EVENT_INIT    = 1,
+	DEVICE3_EVENT_UPDATE  = 2,
 };
 
 struct device3_ahrs_t;
@@ -91,6 +108,7 @@ struct device3_quat_t {
 	float w;
 };
 
+typedef enum device3_error_t device3_error_type;
 typedef struct device3_packet_t device3_packet_type;
 typedef enum device3_event_t device3_event_type;
 
@@ -128,17 +146,17 @@ typedef struct device3_t device3_type;
 
 device3_type* device3_open(device3_event_callback callback);
 
-void device3_reset_calibration(device3_type* device);
+device3_error_type device3_reset_calibration(device3_type* device);
 
-int device3_load_calibration(device3_type* device, const char* path);
+device3_error_type device3_load_calibration(device3_type* device, const char* path);
 
-int device3_save_calibration(device3_type* device, const char* path);
+device3_error_type device3_save_calibration(device3_type* device, const char* path);
 
-void device3_clear(device3_type* device);
+device3_error_type device3_clear(device3_type* device);
 
-int device3_calibrate(device3_type* device, uint32_t iterations, bool gyro, bool accel, bool magnet);
+device3_error_type device3_calibrate(device3_type* device, uint32_t iterations, bool gyro, bool accel, bool magnet);
 
-int device3_read(device3_type* device, int timeout);
+device3_error_type device3_read(device3_type* device, int timeout);
 
 device3_vec3_type device3_get_earth_acceleration(const device3_ahrs_type* ahrs);
 
@@ -148,7 +166,7 @@ device3_quat_type device3_get_orientation(const device3_ahrs_type* ahrs);
 
 device3_vec3_type device3_get_euler(device3_quat_type quat);
 
-void device3_close(device3_type* device);
+device3_error_type device3_close(device3_type* device);
 
 #ifdef __cplusplus
 } // extern "C"
