@@ -3,12 +3,10 @@ project(nrealAirLibrary C)
 
 set(CMAKE_C_STANDARD 17)
 
-add_subdirectory(hidapi)
 find_package(json-c REQUIRED CONFIG)
 
-add_subdirectory(Fusion/Fusion)
-set(FUSION_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/interface_lib/Fusion)
-set(FUSION_LIBRARY Fusion)
+add_subdirectory(modules/hidapi)
+add_subdirectory(modules/Fusion/Fusion)
 
 add_library(
 		nrealAirLibrary
@@ -24,11 +22,13 @@ target_include_directories(nrealAirLibrary
 )
 
 target_include_directories(nrealAirLibrary
-		BEFORE PRIVATE ${FUSION_INCLUDE_DIR}
+		SYSTEM BEFORE PRIVATE 
+		${CMAKE_CURRENT_SOURCE_DIR}/modules/hidapi
+		${CMAKE_CURRENT_SOURCE_DIR}/modules/Fusion
 )
 
 target_link_libraries(nrealAirLibrary
-		PRIVATE hidapi::hidapi json-c::json-c ${FUSION_LIBRARY}
+		PRIVATE hidapi::hidapi json-c::json-c Fusion m
 )
 
 set(NREAL_AIR_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include PARENT_SCOPE)
