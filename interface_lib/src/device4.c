@@ -165,12 +165,10 @@ static bool do_payload_action(device4_type* device, uint16_t msgid, uint8_t len,
 	return false;
 }
 
-device4_type* device4_open(device4_event_callback callback) {
-	device4_type* device = (device4_type*) malloc(sizeof(device4_type));
-	
+device4_error_type device4_open(device4_type* device, device4_event_callback callback) {
 	if (!device) {
-		device4_error("Not allocated");
-		return NULL;
+		device4_error("No device");
+		return DEVICE4_ERROR_NO_DEVICE;
 	}
 	
 	memset(device, 0, sizeof(device4_type));
@@ -180,7 +178,7 @@ device4_type* device4_open(device4_event_callback callback) {
 
 	if (0 != hid_init()) {
 		device4_error("Not initialized");
-		return device;
+		return DEVICE4_ERROR_NOT_INITIALIZED;
 	}
 
 	struct hid_device_info* info = hid_enumerate(
@@ -202,57 +200,57 @@ device4_type* device4_open(device4_event_callback callback) {
 
 	if (!device->handle) {
 		device4_error("No handle");
-		return device;
+		return DEVICE4_ERROR_NO_HANDLE;
 	}
 
 	device4_clear(device);
 
 	if (!send_payload_action(device, DEVICE4_MSG_R_ACTIVATION_TIME, 0, NULL)) {
 		device4_error("Requesting activation time failed");
-		return device;
+		return DEVICE4_ERROR_PAYLOAD_FAILED;
 	}
 
 	uint8_t activated;
 	if (!recv_payload_msg(device, DEVICE4_MSG_R_ACTIVATION_TIME, 1, &activated)) {
 		device4_error("Receiving activation time failed");
-		return device;
+		return DEVICE4_ERROR_PAYLOAD_FAILED;
 	}
 
 	device->activated = (activated != 0);
 
 	if (!device->activated) {
 		device4_error("Device is not activated");
-		return device;
+		return DEVICE4_ERROR_NO_ACTIVATION;
 	}
 
 	if (!send_payload_action(device, DEVICE4_MSG_R_MCU_APP_FW_VERSION, 0, NULL)) {
 		device4_error("Requesting current MCU app firmware version");
-		return device;
+		return DEVICE4_ERROR_PAYLOAD_FAILED;
 	}
 
 	if (!recv_payload_msg(device, DEVICE4_MSG_R_MCU_APP_FW_VERSION, 41, (uint8_t*) device->mcu_app_fw_version)) {
 		device4_error("Receiving current MCU app firmware version failed");
-		return device;
+		return DEVICE4_ERROR_PAYLOAD_FAILED;
 	}
 
 	if (!send_payload_action(device, DEVICE4_MSG_R_DP7911_FW_VERSION, 0, NULL)) {
 		device4_error("Requesting current DP firmware version");
-		return device;
+		return DEVICE4_ERROR_PAYLOAD_FAILED;
 	}
 
 	if (!recv_payload_msg(device, DEVICE4_MSG_R_DP7911_FW_VERSION, 41, (uint8_t*) device->dp_fw_version)) {
 		device4_error("Receiving current DP firmware version failed");
-		return device;
+		return DEVICE4_ERROR_PAYLOAD_FAILED;
 	}
 
 	if (!send_payload_action(device, DEVICE4_MSG_R_DSP_APP_FW_VERSION, 0, NULL)) {
 		device4_error("Requesting current DSP app firmware version");
-		return device;
+		return DEVICE4_ERROR_PAYLOAD_FAILED;
 	}
 
 	if (!recv_payload_msg(device, DEVICE4_MSG_R_DSP_APP_FW_VERSION, 41, (uint8_t*) device->dsp_fw_version)) {
 		device4_error("Receiving current DSP app firmware version failed");
-		return device;
+		return DEVICE4_ERROR_PAYLOAD_FAILED;
 	}
 
 #ifndef NDEBUG
@@ -263,22 +261,22 @@ device4_type* device4_open(device4_event_callback callback) {
 
 	if (!send_payload_action(device, DEVICE4_MSG_R_BRIGHTNESS, 0, NULL)) {
 		device4_error("Requesting initial brightness failed");
-		return device;
+		return DEVICE4_ERROR_PAYLOAD_FAILED;
 	}
 
 	if (!recv_payload_msg(device, DEVICE4_MSG_R_BRIGHTNESS, 1, &device->brightness)) {
 		device4_error("Receiving initial brightness failed");
-		return device;
+		return DEVICE4_ERROR_PAYLOAD_FAILED;
 	}
 
 	if (!send_payload_action(device, DEVICE4_MSG_R_DISP_MODE, 0, NULL)) {
 		device4_error("Requesting display mode failed");
-		return device;
+		return DEVICE4_ERROR_PAYLOAD_FAILED;
 	}
 
 	if (!recv_payload_msg(device, DEVICE4_MSG_R_DISP_MODE, 1, &device->disp_mode)) {
 		device4_error("Receiving display mode failed");
-		return device;
+		return DEVICE4_ERROR_PAYLOAD_FAILED;
 	}
 
 #ifndef NDEBUG
@@ -286,7 +284,7 @@ device4_type* device4_open(device4_event_callback callback) {
 	printf("Disp-Mode: %d\n", device->disp_mode);
 #endif
 
-	return device;
+	return DEVICE4_ERROR_NO_ERROR;
 }
 
 static void device4_callback(device4_type* device,
@@ -576,10 +574,9 @@ device4_error_type device4_close(device4_type* device) {
 	
 	if (device->handle) {
 		hid_close(device->handle);
-		device->handle = NULL;
 	}
 	
-	free(device);
+	memset(device, 0, sizeof(device4_type));
 	hid_exit();
 
 	return DEVICE4_ERROR_NO_ERROR;

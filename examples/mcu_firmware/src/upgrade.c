@@ -67,14 +67,13 @@ int main(int argc, const char** argv) {
         return 0;
     }
 
-	device4_type* dev4 = device4_open(NULL);
-	
-	if (!dev4) {
+	device4_type dev4;
+	if (DEVICE4_ERROR_NO_ERROR != device4_open(&dev4, NULL)) {
 		return 1;
 	}
 	
-	device4_clear(dev4);
-	device4_update_mcu_firmware(dev4, path);
-	device4_close(dev4);
+	device4_clear(&dev4);
+	device4_update_mcu_firmware(&dev4, path);
+	device4_close(&dev4);
 	return 0;
 }

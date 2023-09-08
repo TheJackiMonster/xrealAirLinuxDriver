@@ -181,12 +181,10 @@ static FusionQuaternion json_object_get_quaternion(struct json_object* obj) {
 	return quaternion;
 }
 
-device3_type* device3_open(device3_event_callback callback) {
-	device3_type* device = (device3_type*) malloc(sizeof(device3_type));
-	
+device3_error_type device3_open(device3_type* device, device3_event_callback callback) {
 	if (!device) {
-		device3_error("Not allocated");
-		return NULL;
+		device3_error("No device");
+		return DEVICE3_ERROR_NO_DEVICE;
 	}
 	
 	memset(device, 0, sizeof(device3_type));
@@ -196,7 +194,7 @@ device3_type* device3_open(device3_event_callback callback) {
 	
 	if (0 != hid_init()) {
 		device3_error("Not initialized");
-		return device;
+		return DEVICE3_ERROR_NOT_INITIALIZED;
 	}
 
 	struct hid_device_info* info = hid_enumerate(
@@ -218,14 +216,14 @@ device3_type* device3_open(device3_event_callback callback) {
 	
 	if (!device->handle) {
 		device3_error("No handle");
-		return device;
+		return DEVICE3_ERROR_NO_HANDLE;
 	}
 
 	device3_clear(device);
 	
 	if (!send_payload_msg(device, DEVICE3_MSG_GET_STATIC_ID, 0, NULL)) {
 		device3_error("Failed sending payload to get static id");
-		return device;
+		return DEVICE3_ERROR_PAYLOAD_FAILED;
 	}
 	
 	uint32_t static_id = 0;
@@ -240,7 +238,7 @@ device3_type* device3_open(device3_event_callback callback) {
 	
 	if (!send_payload_msg(device, DEVICE3_MSG_GET_CAL_DATA_LENGTH, 0, NULL)) {
 		device3_error("Failed sending payload to get calibration data length");
-		return device;
+		return DEVICE3_ERROR_PAYLOAD_FAILED;
 	}
 	
 	uint32_t calibration_len = 0;
@@ -296,7 +294,7 @@ device3_type* device3_open(device3_event_callback callback) {
 	
 	if (!send_payload_msg_signal(device, DEVICE3_MSG_START_IMU_DATA, 0x1)) {
 		device3_error("Failed sending payload to start imu data stream");
-		return device;
+		return DEVICE3_ERROR_PAYLOAD_FAILED;
 	}
 	
 	const uint32_t SAMPLE_RATE = 1000;
@@ -316,7 +314,7 @@ device3_type* device3_open(device3_event_callback callback) {
 	};
 	
 	FusionAhrsSetSettings((FusionAhrs*) device->ahrs, &settings);
-	return device;
+	return DEVICE3_ERROR_NO_ERROR;
 }
 
 device3_error_type device3_reset_calibration(device3_type* device) {
@@ -896,10 +894,9 @@ device3_error_type device3_close(device3_type* device) {
 
 	if (device->handle) {
 		hid_close(device->handle);
-		device->handle = NULL;
 	}
 	
-	free(device);
+	memset(device, 0, sizeof(device3_type));
 	hid_exit();
 
 	return DEVICE3_ERROR_NO_ERROR;

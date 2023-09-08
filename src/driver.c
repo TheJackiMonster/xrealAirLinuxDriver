@@ -102,30 +102,29 @@ int main(int argc, const char** argv) {
 	}
 	
 	if (pid == 0) {
-		device3_type* dev3 = device3_open(test3);
-		device3_clear(dev3);
-		
-		while (dev3) {
-			if (device3_read(dev3, 0) != DEVICE3_ERROR_NO_ERROR) {
-				break;
-			}
+		device3_type dev3;
+		if (DEVICE3_ERROR_NO_ERROR != device3_open(&dev3, test3)) {
+			return 1;
 		}
-		
-		device3_close(dev3);
+
+		device3_clear(&dev3);
+		while (DEVICE3_ERROR_NO_ERROR == device3_read(&dev3, 0));
+		device3_close(&dev3);
 		return 0;
 	} else {
-		device4_type* dev4 = device4_open(test4);
-		device4_clear(dev4);
-		
-		while (dev4) {
-			if (device4_read(dev4, 0) != DEVICE4_ERROR_NO_ERROR) {
-				break;
-			}
-		}
-		
-		device4_close(dev4);
-		
 		int status = 0;
+
+		device4_type dev4;
+		if (DEVICE4_ERROR_NO_ERROR != device4_open(&dev4, test4)) {
+			status = 1;
+			goto exit;
+		}
+
+		device4_clear(&dev4);
+		while (DEVICE4_ERROR_NO_ERROR == device4_read(&dev4, 0));
+		device4_close(&dev4);
+		
+	exit:
 		if (pid != waitpid(pid, &status, 0)) {
 			return 1;
 		}

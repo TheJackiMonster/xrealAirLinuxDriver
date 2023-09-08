@@ -60,7 +60,9 @@ enum device3_error_t {
 	DEVICE3_ERROR_UNEXPECTED = 10,
 	DEVICE3_ERROR_WRONG_SIGNATURE = 11,
 	DEVICE3_ERROR_INVALID_VALUE = 12,
-	DEVICE3_ERROR_UNKNOWN = 13,
+	DEVICE3_ERROR_NOT_INITIALIZED = 13,
+	DEVICE3_ERROR_PAYLOAD_FAILED = 14,
+	DEVICE3_ERROR_UNKNOWN = 15,
 };
 
 struct __attribute__((__packed__)) device3_packet_t {
@@ -144,7 +146,7 @@ struct device3_t {
 
 typedef struct device3_t device3_type;
 
-device3_type* device3_open(device3_event_callback callback);
+device3_error_type device3_open(device3_type* device, device3_event_callback callback);
 
 device3_error_type device3_reset_calibration(device3_type* device);
 

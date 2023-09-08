@@ -47,20 +47,13 @@ void test3(uint64_t timestamp,
 }
 
 int main(int argc, const char** argv) {
-	device3_type* dev3 = device3_open(test3);
-	
-	if (!dev3) {
+	device3_type dev3;
+	if (DEVICE3_ERROR_NO_ERROR != device3_open(&dev3, test3)) {
 		return 1;
 	}
 	
-	device3_clear(dev3);
-	
-	while (dev3) {
-		if (device3_read(dev3, -1) != DEVICE3_ERROR_NO_ERROR) {
-			break;
-		}
-	}
-	
-	device3_close(dev3);
+	device3_clear(&dev3);
+	while (DEVICE3_ERROR_NO_ERROR == device3_read(&dev3, -1));
+	device3_close(&dev3);
 	return 0;
 }

@@ -107,7 +107,9 @@ enum device4_error_t {
 	DEVICE4_ERROR_UNEXPECTED = 6,
 	DEVICE4_ERROR_WRONG_HEAD = 7,
 	DEVICE4_ERROR_INVALID_LENGTH = 8,
-	DEVICE4_ERROR_UNKNOWN = 9,
+	DEVICE4_ERROR_NOT_INITIALIZED = 9,
+	DEVICE4_ERROR_PAYLOAD_FAILED = 10,
+	DEVICE4_ERROR_UNKNOWN = 11,
 };
 
 struct __attribute__((__packed__)) device4_packet_t {
@@ -162,7 +164,7 @@ struct device4_t {
 
 typedef struct device4_t device4_type;
 
-device4_type* device4_open(device4_event_callback callback);
+device4_error_type device4_open(device4_type* device, device4_event_callback callback);
 
 device4_error_type device4_clear(device4_type* device);
 
