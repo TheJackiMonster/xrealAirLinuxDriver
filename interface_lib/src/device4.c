@@ -34,6 +34,7 @@
 #include <hidapi/hidapi.h>
 
 #include "crc32.h"
+#include "hid_ids.h"
 
 #ifndef NDEBUG
 #define device4_error(msg) fprintf(stderr, "ERROR: %s\n", msg)
@@ -172,8 +173,8 @@ device4_error_type device4_open(device4_type* device, device4_event_callback cal
 	}
 	
 	memset(device, 0, sizeof(device4_type));
-	device->vendor_id 	= 0x3318;
-	device->product_id 	= 0x0424;
+	device->vendor_id 	= xreal_vendor_id;
+	device->product_id 	= 0;
 	device->callback 	= callback;
 
 	if (0 != hid_init()) {
@@ -182,13 +183,17 @@ device4_error_type device4_open(device4_type* device, device4_event_callback cal
 	}
 
 	struct hid_device_info* info = hid_enumerate(
-		device->vendor_id, 
+		device->vendor_id,
 		device->product_id
 	);
 
 	struct hid_device_info* it = info;
 	while (it) {
-		if (it->interface_number == 4) {
+		if (is_xreal_product_id(it->product_id) && it->interface_number == 4) {
+#ifndef NDEBUG
+            printf("Found device with product_id: 0x%x\n", it->product_id);
+#endif
+			device->product_id = it->product_id;
 			device->handle = hid_open_path(it->path);
 			break;
 		}
