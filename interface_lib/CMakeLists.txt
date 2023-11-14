@@ -13,6 +13,7 @@ add_library(
 		src/crc32.c
 		src/device3.c
 		src/device4.c
+		src/hid_ids.c
 )
 
 target_compile_options(nrealAirLibrary PRIVATE -fPIC)
