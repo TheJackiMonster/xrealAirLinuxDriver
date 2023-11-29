@@ -464,10 +464,58 @@ device4_error_type device4_read(device4_type* device, int timeout) {
 	return DEVICE4_ERROR_NO_ERROR;
 }
 
+device4_error_type device4_poll_display_mode(device4_type* device) {
+	if (!device) {
+		device4_error("No device");
+		return DEVICE4_ERROR_NO_DEVICE;
+	}
+
+	if (!device->handle) {
+		device4_error("No handle");
+		return DEVICE4_ERROR_NO_HANDLE;
+	}
+
+	if (!send_payload_action(device, DEVICE4_MSG_R_DISP_MODE, 0, NULL)) {
+		device4_error("Requesting display mode failed");
+		return DEVICE4_ERROR_PAYLOAD_FAILED;
+	}
+
+	if (!recv_payload_msg(device, DEVICE4_MSG_R_DISP_MODE, 1, &device->disp_mode)) {
+		device4_error("Receiving display mode failed");
+		return DEVICE4_ERROR_PAYLOAD_FAILED;
+	}
+
+	return DEVICE4_ERROR_NO_ERROR;
+}
+
+device4_error_type device4_update_display_mode(device4_type* device) {
+	if (!device) {
+		device4_error("No device");
+		return DEVICE4_ERROR_NO_DEVICE;
+	}
+
+	if (!device->handle) {
+		device4_error("No handle");
+		return DEVICE4_ERROR_NO_HANDLE;
+	}
+
+	if (!do_payload_action(device, DEVICE4_MSG_W_DISP_MODE, 1, &device->disp_mode)) {
+		device4_error("Sending display mode failed");
+		return DEVICE4_ERROR_PAYLOAD_FAILED;
+	}
+
+	return DEVICE4_ERROR_NO_ERROR;
+}
+
 device4_error_type device4_update_mcu_firmware(device4_type* device, const char* path) {
 	if (!device) {
 		device4_error("No device");
 		return DEVICE4_ERROR_NO_DEVICE;
+	}
+
+	if (!device->handle) {
+		device4_error("No handle");
+		return DEVICE4_ERROR_NO_HANDLE;
 	}
 
 	if (!device->activated) {

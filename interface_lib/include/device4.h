@@ -87,11 +87,20 @@
 #define DEVICE4_BUTTON_PHYS_BRIGHTNESS_UP 0x2
 #define DEVICE4_BUTTON_PHYS_BRIGHTNESS_DOWN 0x3
 
+#define DEVICE4_DISPLAY_MODE_1920x1080_60 0x1
+#define DEVICE4_DISPLAY_MODE_3840x1080_60_SBS 0x3
+#define DEVICE4_DISPLAY_MODE_3840x1080_72_SBS 0x4
+#define DEVICE4_DISPLAY_MODE_1920x1080_72 0x5
+#define DEVICE4_DISPLAY_MODE_1920x1080_60_SBS 0x8
+#define DEVICE4_DISPLAY_MODE_3840x1080_90_SBS 0x9
+#define DEVICE4_DISPLAY_MODE_1920x1080_90 0xA
+#define DEVICE4_DISPLAY_MODE_1920x1080_120 0xB
+
 #define DEVICE4_BUTTON_VIRT_DISPLAY_TOGGLE 0x1
 #define DEVICE4_BUTTON_VIRT_BRIGHTNESS_UP 0x6
 #define DEVICE4_BUTTON_VIRT_BRIGHTNESS_DOWN 0x7
-#define DEVICE4_BUTTON_VIRT_MODE_UP 0x8
-#define DEVICE4_BUTTON_VIRT_MODE_DOWN 0x9
+#define DEVICE4_BUTTON_VIRT_UP 0x8
+#define DEVICE4_BUTTON_VIRT_DOWN 0x9
 
 #ifdef __cplusplus
 extern "C" {
@@ -169,6 +178,10 @@ device4_error_type device4_open(device4_type* device, device4_event_callback cal
 device4_error_type device4_clear(device4_type* device);
 
 device4_error_type device4_read(device4_type* device, int timeout);
+
+device4_error_type device4_poll_display_mode(device4_type* device);
+
+device4_error_type device4_update_display_mode(device4_type* device);
 
 device4_error_type device4_update_mcu_firmware(device4_type* device, const char* path);
 
