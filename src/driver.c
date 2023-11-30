@@ -108,6 +108,7 @@ int main(int argc, const char** argv) {
 		}
 
 		device3_clear(&dev3);
+		device3_calibrate(&dev3, 1000, true, true, false);
 		while (DEVICE3_ERROR_NO_ERROR == device3_read(&dev3, 0));
 		device3_close(&dev3);
 		return 0;
