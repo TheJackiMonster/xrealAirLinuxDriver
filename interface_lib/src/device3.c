@@ -529,7 +529,35 @@ static void pre_biased_coordinate_system(FusionVector* v) {
 }
 
 static void post_biased_coordinate_system(const FusionVector* v, FusionVector* res) {
-	*res = FusionAxesSwap(*v, FusionAxesAlignmentPXNYNZ);
+	*res = FusionAxesSwap(*v, FusionAxesAlignmentNZNXPY);
+}
+
+static void iterate_iron_offset_estimation(const FusionVector* magnetometer, FusionMatrix* softIronMatrix, FusionVector* hardIronOffset) {
+	static FusionVector max = { FLT_MIN, FLT_MIN, FLT_MIN };
+	static FusionVector min = { FLT_MAX, FLT_MAX, FLT_MAX };
+
+	for (int i = 0; i < 3; i++) {
+		max.array[i] = max(max.array[i], magnetometer->array[i]);
+		min.array[i] = min(min.array[i], magnetometer->array[i]);
+	}
+	
+	const float mx = (max.axis.x - min.axis.x) / 2.0f;
+	const float my = (max.axis.y - min.axis.y) / 2.0f;
+	const float mz = (max.axis.z - min.axis.z) / 2.0f;
+	
+	const float cx = (min.axis.x + max.axis.x) / 2.0f;
+	const float cy = (min.axis.y + max.axis.y) / 2.0f;
+	const float cz = (min.axis.z + max.axis.z) / 2.0f;
+
+	memset(softIronMatrix, 0, sizeof(*softIronMatrix));
+	
+	softIronMatrix->element.xx = 1.0f / mx;
+	softIronMatrix->element.yy = 1.0f / my;
+	softIronMatrix->element.zz = 1.0f / mz;
+
+	hardIronOffset->axis.x = cx;
+	hardIronOffset->axis.y = cy;
+	hardIronOffset->axis.z = cz;
 }
 
 static void apply_calibration(const device3_type* device,
@@ -622,27 +650,11 @@ static void apply_calibration(const device3_type* device,
 			magnetometerOffset
 	);
 
-	static FusionVector max = { FLT_MIN, FLT_MIN, FLT_MIN }, min = { FLT_MAX, FLT_MAX, FLT_MAX };
-	for (int i = 0; i < 3; i++) {
-		max.array[i] = max(max.array[i], m.array[i]);
-		min.array[i] = min(min.array[i], m.array[i]);
-	}
-	
-	const float mx = (max.axis.x - min.axis.x) / 2.0f;
-	const float my = (max.axis.y - min.axis.y) / 2.0f;
-	const float mz = (max.axis.z - min.axis.z) / 2.0f;
-	
-	const float cx = (min.axis.x + max.axis.x) / 2.0f;
-	const float cy = (min.axis.y + max.axis.y) / 2.0f;
-	const float cz = (min.axis.z + max.axis.z) / 2.0f;
-	
-	softIronMatrix.element.xx = 1.0f / mx;
-	softIronMatrix.element.yy = 1.0f / my;
-	softIronMatrix.element.zz = 1.0f / mz;
-
-	hardIronOffset.axis.x = cx;
-	hardIronOffset.axis.y = cy;
-	hardIronOffset.axis.z = cz;
+	iterate_iron_offset_estimation(
+		&m, 
+		&softIronMatrix, 
+		&hardIronOffset
+	);
 	
 	if (device->calibration) {
 		device->calibration->softIronMatrix = softIronMatrix;
@@ -658,12 +670,6 @@ static void apply_calibration(const device3_type* device,
 	post_biased_coordinate_system(&g, gyroscope);
 	post_biased_coordinate_system(&a, accelerometer);
 	post_biased_coordinate_system(&m, magnetometer);
-
-	const FusionAxesAlignment alignment = FusionAxesAlignmentPZPXPY;
-	
-	*gyroscope = FusionAxesSwap(*gyroscope, alignment);
-	*accelerometer = FusionAxesSwap(*accelerometer, alignment);
-	*magnetometer = FusionAxesSwap(*magnetometer, alignment);
 }
 
 device3_error_type device3_clear(device3_type* device) {
@@ -680,6 +686,11 @@ device3_error_type device3_calibrate(device3_type* device, uint32_t iterations, 
 		device3_error("No handle");
 		return DEVICE3_ERROR_NO_HANDLE;
 	}
+
+	if (!device->calibration) {
+		device3_error("No calibration allocated");
+		return DEVICE3_ERROR_NO_ALLOCATION;
+	}
 	
 	if (MAX_PACKET_SIZE != sizeof(device3_packet_type)) {
 		device3_error("Not proper size");
@@ -693,7 +704,9 @@ device3_error_type device3_calibrate(device3_type* device, uint32_t iterations, 
 	
 	FusionVector cal_gyroscope;
 	FusionVector cal_accelerometer;
-	FusionVector cal_magnetometer [2];
+
+	FusionMatrix softIronMatrix;
+	FusionVector hardIronOffset;
 	
 	const float factor = iterations > 0? 1.0f / ((float) iterations) : 0.0f;
 
@@ -744,19 +757,12 @@ device3_error_type device3_calibrate(device3_type* device, uint32_t iterations, 
 		}
 
 		prev_accel = accelerometer;
-		
-		if (initialized) {
-			cal_magnetometer[0].axis.x = min(cal_magnetometer[0].axis.x, magnetometer.axis.x);
-			cal_magnetometer[0].axis.y = min(cal_magnetometer[0].axis.y, magnetometer.axis.y);
-			cal_magnetometer[0].axis.z = min(cal_magnetometer[0].axis.z, magnetometer.axis.z);
-			cal_magnetometer[1].axis.x = max(cal_magnetometer[1].axis.x, magnetometer.axis.x);
-			cal_magnetometer[1].axis.y = max(cal_magnetometer[1].axis.y, magnetometer.axis.y);
-			cal_magnetometer[1].axis.z = max(cal_magnetometer[1].axis.z, magnetometer.axis.z);
-		} else {
-			cal_magnetometer[0] = magnetometer;
-			cal_magnetometer[1] = magnetometer;
-			initialized = true;
-		}
+
+		iterate_iron_offset_estimation(
+			&magnetometer, 
+			&softIronMatrix, 
+			&hardIronOffset
+		);
 		
 		iterations--;
 	}
@@ -783,13 +789,8 @@ device3_error_type device3_calibrate(device3_type* device, uint32_t iterations, 
 		}
 		
 		if (magnet) {
-			device->calibration->hardIronOffset = FusionVectorAdd(
-					device->calibration->hardIronOffset,
-					FusionVectorMultiplyScalar(
-							FusionVectorAdd(cal_magnetometer[0], cal_magnetometer[1]),
-							0.5f
-					)
-			);
+			device->calibration->softIronMatrix = softIronMatrix;
+			device->calibration->hardIronOffset = hardIronOffset;
 		}
 	}
 	
