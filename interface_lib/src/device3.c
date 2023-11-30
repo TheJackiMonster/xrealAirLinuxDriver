@@ -331,7 +331,7 @@ device3_error_type device3_open(device3_type* device, device3_event_callback cal
 	FusionAhrsInitialise((FusionAhrs*) device->ahrs);
 	
 	const FusionAhrsSettings settings = {
-			.convention = FusionConventionNwu,
+			.convention = FusionConventionNed,
 			.gain = 0.5f,
 			.accelerationRejection = 10.0f,
 			.magneticRejection = 20.0f,
