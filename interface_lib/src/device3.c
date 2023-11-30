@@ -912,17 +912,17 @@ device3_quat_type device3_get_orientation(const device3_ahrs_type* ahrs) {
 	return q;
 }
 
-device3_vec3_type device3_get_euler(device3_quat_type quat) {
+device3_euler_type device3_get_euler(device3_quat_type quat) {
 	FusionQuaternion quaternion;
 	quaternion.element.x = quat.x;
 	quaternion.element.y = quat.y;
 	quaternion.element.z = quat.z;
 	quaternion.element.w = quat.w;
 	FusionEuler euler = FusionQuaternionToEuler(quaternion);
-	device3_vec3_type e;
-	e.x = euler.angle.pitch;
-	e.y = euler.angle.roll;
-	e.z = euler.angle.yaw;
+	device3_euler_type e;
+	e.roll = euler.angle.roll;
+	e.pitch = euler.angle.pitch;
+	e.yaw = euler.angle.yaw;
 	return e;
 }
 

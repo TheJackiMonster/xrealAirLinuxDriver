@@ -30,7 +30,7 @@ void test3(uint64_t timestamp,
 		   device3_event_type event,
 		   const device3_ahrs_type* ahrs) {
 	device3_quat_type orientation;
-	device3_vec3_type euler;
+	device3_euler_type euler;
 	
 	switch (event) {
 		case DEVICE3_EVENT_INIT:
@@ -39,7 +39,7 @@ void test3(uint64_t timestamp,
 		case DEVICE3_EVENT_UPDATE:
 			orientation = device3_get_orientation(ahrs);
 			euler = device3_get_euler(orientation);
-			printf("Pitch: %.2f; Roll: %.2f; Yaw: %.2f\n", euler.x, euler.y, euler.z);
+			printf("Roll: %.2f; Pitch: %.2f; Yaw: %.2f\n", euler.roll, euler.pitch, euler.yaw);
 			break;
 		default:
 			break;

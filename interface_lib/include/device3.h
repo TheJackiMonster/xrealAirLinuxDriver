@@ -110,6 +110,12 @@ struct device3_quat_t {
 	float w;
 };
 
+struct device3_euler_t {
+	float roll;
+	float pitch;
+	float yaw;
+};
+
 typedef enum device3_error_t device3_error_type;
 typedef struct device3_packet_t device3_packet_type;
 typedef enum device3_event_t device3_event_type;
@@ -119,6 +125,7 @@ typedef struct device3_calibration_t device3_calibration_type;
 
 typedef struct device3_vec3_t device3_vec3_type;
 typedef struct device3_quat_t device3_quat_type;
+typedef struct device3_euler_t device3_euler_type;
 
 typedef void (*device3_event_callback)(
 		uint64_t timestamp,
@@ -166,7 +173,7 @@ device3_vec3_type device3_get_linear_acceleration(const device3_ahrs_type* ahrs)
 
 device3_quat_type device3_get_orientation(const device3_ahrs_type* ahrs);
 
-device3_vec3_type device3_get_euler(device3_quat_type quat);
+device3_euler_type device3_get_euler(device3_quat_type quat);
 
 device3_error_type device3_close(device3_type* device);
 

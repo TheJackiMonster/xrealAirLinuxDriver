@@ -56,19 +56,19 @@ void test3(uint64_t timestamp,
 		dmax = (d > dmax? d : dmax);
 	}
 	
-	device3_vec3_type e = device3_get_euler(q);
+	device3_euler_type e = device3_get_euler(q);
 	
 	if (d >= 0.00005f) {
-		device3_vec3_type e0 = device3_get_euler(old);
+		device3_euler_type e0 = device3_get_euler(old);
 		
-		printf("Pitch: %f; Roll: %f; Yaw: %f\n", e0.x, e0.y, e0.z);
-		printf("Pitch: %f; Roll: %f; Yaw: %f\n", e.x, e.y, e.z);
+		printf("Roll: %f; Pitch: %f; Yaw: %f\n", e0.roll, e0.pitch, e0.yaw);
+		printf("Roll: %f; Pitch: %f; Yaw: %f\n", e.roll, e.pitch, e.yaw);
 		printf("D = %f; ( %f )\n", d, dmax);
 		
 		printf("X: %f; Y: %f; Z: %f; W: %f;\n", old.x, old.y, old.z, old.w);
 		printf("X: %f; Y: %f; Z: %f; W: %f;\n", q.x, q.y, q.z, q.w);
 	} else {
-		printf("Pitch: %.2f; Roll: %.2f; Yaw: %.2f\n", e.x, e.y, e.z);
+		printf("Roll: %.2f; Pitch: %.2f; Yaw: %.2f\n", e.roll, e.pitch, e.yaw);
 	}
 	
 	old = q;
