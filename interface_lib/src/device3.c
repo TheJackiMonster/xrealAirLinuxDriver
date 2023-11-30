@@ -529,7 +529,7 @@ static void pre_biased_coordinate_system(FusionVector* v) {
 }
 
 static void post_biased_coordinate_system(const FusionVector* v, FusionVector* res) {
-	*res = FusionAxesSwap(*v, FusionAxesAlignmentNZNXPY);
+	*res = FusionAxesSwap(*v, FusionAxesAlignmentPZPXPY);
 }
 
 static void iterate_iron_offset_estimation(const FusionVector* magnetometer, FusionMatrix* softIronMatrix, FusionVector* hardIronOffset) {
