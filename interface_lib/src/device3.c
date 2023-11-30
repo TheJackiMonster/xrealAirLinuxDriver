@@ -624,8 +624,8 @@ static void apply_calibration(const device3_type* device,
 
 	static FusionVector max = { FLT_MIN, FLT_MIN, FLT_MIN }, min = { FLT_MAX, FLT_MAX, FLT_MAX };
 	for (int i = 0; i < 3; i++) {
-		max.array[i] = max(max.array[i], magnetometer->array[i]);
-		min.array[i] = min(min.array[i], magnetometer->array[i]);
+		max.array[i] = max(max.array[i], m.array[i]);
+		min.array[i] = min(min.array[i], m.array[i]);
 	}
 	
 	const float mx = (max.axis.x - min.axis.x) / 2.0f;
@@ -649,8 +649,8 @@ static void apply_calibration(const device3_type* device,
 		device->calibration->hardIronOffset = hardIronOffset;
 	}
 	
-	*magnetometer = FusionCalibrationMagnetic(
-			*magnetometer,
+	m = FusionCalibrationMagnetic(
+			m,
 			softIronMatrix,
 			hardIronOffset
 	);
