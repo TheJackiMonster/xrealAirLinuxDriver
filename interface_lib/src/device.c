@@ -29,7 +29,7 @@
 static size_t hid_device_counter = 0;
 
 bool device_init() {
-    if (0 != hid_init()) {
+    if ((!hid_device_counter) && (0 != hid_init())) {
         return false;
     }
 
