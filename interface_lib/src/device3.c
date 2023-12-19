@@ -23,6 +23,7 @@
 //
 
 #include "device3.h"
+#include "device.h"
 
 #include <Fusion/FusionAxes.h>
 #include <Fusion/FusionMath.h>
@@ -198,7 +199,7 @@ device3_error_type device3_open(device3_type* device, device3_event_callback cal
 	device->product_id 	= 0;
 	device->callback 	= callback;
 	
-	if (0 != hid_init()) {
+	if (!device_init()) {
 		device3_error("Not initialized");
 		return DEVICE3_ERROR_NOT_INITIALIZED;
 	}
@@ -964,7 +965,7 @@ device3_error_type device3_close(device3_type* device) {
 	}
 	
 	memset(device, 0, sizeof(device3_type));
-	hid_exit();
+	device_exit();
 
 	return DEVICE3_ERROR_NO_ERROR;
 }

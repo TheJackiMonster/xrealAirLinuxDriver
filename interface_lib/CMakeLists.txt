@@ -11,6 +11,7 @@ add_subdirectory(modules/Fusion/Fusion)
 add_library(
 		nrealAirLibrary
 		src/crc32.c
+		src/device.c
 		src/device3.c
 		src/device4.c
 		src/hid_ids.c

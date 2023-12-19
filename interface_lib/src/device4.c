@@ -23,6 +23,7 @@
 //
 
 #include "device4.h"
+#include "device.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -177,7 +178,7 @@ device4_error_type device4_open(device4_type* device, device4_event_callback cal
 	device->product_id 	= 0;
 	device->callback 	= callback;
 
-	if (0 != hid_init()) {
+	if (!device_init()) {
 		device4_error("Not initialized");
 		return DEVICE4_ERROR_NOT_INITIALIZED;
 	}
@@ -630,7 +631,7 @@ device4_error_type device4_close(device4_type* device) {
 	}
 	
 	memset(device, 0, sizeof(device4_type));
-	hid_exit();
+	device_exit();
 
 	return DEVICE4_ERROR_NO_ERROR;
 }
