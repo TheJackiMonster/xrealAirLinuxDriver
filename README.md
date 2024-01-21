@@ -59,10 +59,14 @@ make
 
 ## Run
 
-It's easiest to run the software with root privileges. But theoretically it should be possible to 
-adjust rules of your device to not need them for read/write access vis USB. It's definitely not 
-planned to require that in the future (but for now):
+It's easiest to run the software with root privileges.
 
 ```
 sudo nrealAirLinuxDriver
+```
+
+Alternatively, you can copy the nreal_air.rules to /etc/udev/rules.d:
+
+```
+sudo cp udev/nreal_air.rules /etc/udev/rules.d/xreal_air.rules
 ```
