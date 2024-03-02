@@ -1,7 +1,7 @@
 //
 // Created by thejackimonster on 29.03.23.
 //
-// Copyright (c) 2023 thejackimonster. All rights reserved.
+// Copyright (c) 2023-2024 thejackimonster. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -93,13 +93,18 @@ static bool send_payload_action(device4_type* device, uint16_t msgid, uint8_t le
 	const uint16_t payload_len = 5 + packet_len;
 	
 	packet.head = PACKET_HEAD;
-	packet.length = packet_len;
-	packet.timestamp = 0;
-	packet.msgid = msgid;
+	packet.length = htole16(packet_len);
+	packet.timestamp = htole64(0);
+	packet.msgid = htole16(msgid);
 	memset(packet.reserved, 0, 5);
 	
 	memcpy(packet.data, data, len);
-	packet.checksum = crc32_checksum((const uint8_t*) (&packet.length), packet.length);
+	packet.checksum = htole32(
+		crc32_checksum(
+			(const uint8_t*) (&packet.length),
+			packet.length
+		)
+	);
 
 	return send_payload(device, payload_len, (uint8_t*) (&packet));
 }
@@ -123,7 +128,7 @@ static bool recv_payload_msg(device4_type* device, uint16_t msgid, uint8_t len, 
 		return false;
 	}
 	
-	if (packet.msgid != msgid) {
+	if (le16toh(packet.msgid) != msgid) {
 		device4_error("Unexpected payload received");
 		return false;
 	}
@@ -135,7 +140,7 @@ static bool recv_payload_msg(device4_type* device, uint16_t msgid, uint8_t len, 
 		return false;
 	}
 
-	const uint16_t data_len = packet.length - 18;
+	const uint16_t data_len = le16toh(packet.length) - 18;
 
 	if (len <= data_len) {
 		memcpy(data, packet.data + 1, len);
@@ -354,14 +359,17 @@ device4_error_type device4_read(device4_type* device, int timeout) {
 		return DEVICE4_ERROR_WRONG_HEAD;
 	}
 
-	const uint32_t timestamp = packet.timestamp;
+	const uint32_t timestamp = le32toh(packet.timestamp);
+	const uint16_t msgid = le16toh(packet.msgid);
+	const uint16_t length = le16toh(packet.length);
+
 	const size_t data_len = (size_t) &(packet.data) - (size_t) &(packet.length);
 
 #ifndef NDEBUG
-	printf("MSG: %d = %04x (%d)\n", packet.msgid, packet.msgid, packet.length);
+	printf("MSG: %d = %04x (%d)\n", msgid, msgid, length);
 
-	if (packet.length > 11) {
-		for (int i = 0; i < packet.length - 11; i++) {
+	if (length > 11) {
+		for (int i = 0; i < length - 11; i++) {
 			printf("%02x ", packet.data[i]);
 		}
 
@@ -369,7 +377,7 @@ device4_error_type device4_read(device4_type* device, int timeout) {
 	}
 #endif
 	
-	switch (packet.msgid) {
+	switch (msgid) {
 		case DEVICE4_MSG_P_START_HEARTBEAT: {
 			break;
 		}
@@ -434,7 +442,7 @@ device4_error_type device4_read(device4_type* device, int timeout) {
 			
 			device->active = true;
 			
-			if (data_len + text_len != packet.length) {
+			if (data_len + text_len != length) {
 				device4_error("Not matching length");
 				return DEVICE4_ERROR_INVALID_LENGTH;
 			}

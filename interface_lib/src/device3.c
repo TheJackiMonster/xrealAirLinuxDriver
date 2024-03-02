@@ -1,7 +1,7 @@
 //
 // Created by thejackimonster on 30.03.23.
 //
-// Copyright (c) 2023 thejackimonster. All rights reserved.
+// Copyright (c) 2023-2024 thejackimonster. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -126,11 +126,16 @@ static bool send_payload_msg(device3_type* device, uint8_t msgid, uint8_t len, c
 	const uint16_t payload_len = 5 + packet_len;
 	
 	packet.head = 0xAA;
-	packet.length = packet_len;
+	packet.length = htole16(packet_len);
 	packet.msgid = msgid;
 	
 	memcpy(packet.data, data, len);
-	packet.checksum = crc32_checksum((const uint8_t*) (&packet.length), packet.length);
+	packet.checksum = htole32(
+		crc32_checksum(
+			(const uint8_t*) (&packet.length),
+			packet.length
+		)
+	);
 	
 	return send_payload(device, payload_len, (uint8_t*) (&packet));
 }
@@ -838,7 +843,7 @@ device3_error_type device3_read(device3_type* device, int timeout) {
 		return DEVICE3_ERROR_UNEXPECTED;
 	}
 	
-	const uint64_t timestamp = packet.timestamp;
+	const uint64_t timestamp = le64toh(packet.timestamp);
 	
 	if ((packet.signature[0] == 0xaa) && (packet.signature[1] == 0x53)) {
 		device3_callback(device, timestamp, DEVICE3_EVENT_INIT);
