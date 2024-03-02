@@ -1,4 +1,4 @@
-# Custom user-space driver for the nreal Air to use it on Linux
+# Custom user-space driver for the Xreal Air, Xreal Air 2 and Xreal Air 2 Pro to use it on Linux
 
 ## Information before use
 
@@ -62,11 +62,11 @@ make
 It's easiest to run the software with root privileges.
 
 ```
-sudo nrealAirLinuxDriver
+sudo xrealAirLinuxDriver
 ```
 
-Alternatively, you can copy the nreal_air.rules to /etc/udev/rules.d:
+Alternatively, you can copy the xreal_air.rules to /etc/udev/rules.d:
 
 ```
-sudo cp udev/nreal_air.rules /etc/udev/rules.d/xreal_air.rules
+sudo cp udev/xreal_air.rules /etc/udev/rules.d/xreal_air.rules
 ```

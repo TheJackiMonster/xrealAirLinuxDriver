@@ -1,7 +1,7 @@
 //
 // Created by thejackimonster on 03.05.23.
 //
-// Copyright (c) 2023 thejackimonster. All rights reserved.
+// Copyright (c) 2023-2024 thejackimonster. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -29,7 +29,7 @@
 
 int main(int argc, const char** argv) {
     if (argc <= 1) {
-        printf("HOW TO USE IT:\n$ nrealAirUpgradeMCU <PATH>\n");
+        printf("HOW TO USE IT:\n$ xrealAirUpgradeMCU <PATH>\n");
         return 0;
     }
 
