@@ -109,7 +109,7 @@ int main(int argc, const char** argv) {
 
 		device3_clear(&dev3);
 		device3_calibrate(&dev3, 1000, true, true, false);
-		while (DEVICE3_ERROR_NO_ERROR == device3_read(&dev3, 0));
+		while (DEVICE3_ERROR_NO_ERROR == device3_read(&dev3, -1));
 		device3_close(&dev3);
 		return 0;
 	} else {
@@ -122,7 +122,7 @@ int main(int argc, const char** argv) {
 		}
 
 		device4_clear(&dev4);
-		while (DEVICE4_ERROR_NO_ERROR == device4_read(&dev4, 0));
+		while (DEVICE4_ERROR_NO_ERROR == device4_read(&dev4, -1));
 		device4_close(&dev4);
 		
 	exit:
