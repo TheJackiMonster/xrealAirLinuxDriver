@@ -8,7 +8,7 @@
 #include <cstdint>
 #endif
 
-#define NUM_SUPPORTED_PRODUCTS 3
+#define NUM_SUPPORTED_PRODUCTS 4
 
 extern const uint16_t xreal_vendor_id;
 extern const uint16_t xreal_product_ids[NUM_SUPPORTED_PRODUCTS];
