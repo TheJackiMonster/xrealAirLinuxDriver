@@ -33,7 +33,7 @@
 #include <cstdint>
 #endif
 
-#define NUM_SUPPORTED_PRODUCTS 3
+#define NUM_SUPPORTED_PRODUCTS 4
 
 #ifdef __cplusplus
 extern "C" {
