@@ -22,7 +22,7 @@
 // THE SOFTWARE.
 //
 
-#include "device3.h"
+#include "device_imu.h"
 #include "device.h"
 
 #include <Fusion/FusionAxes.h>
@@ -43,12 +43,12 @@
 #define GRAVITY_G (9.806f)
 
 #ifndef NDEBUG
-#define device3_error(msg) fprintf(stderr, "ERROR: %s\n", msg)
+#define device_imu_error(msg) fprintf(stderr, "ERROR: %s\n", msg)
 #else
-#define device3_error(msg) (0)
+#define device_imu_error(msg) (0)
 #endif
 
-struct device3_calibration_t {
+struct device_imu_calibration_t {
 	FusionMatrix gyroscopeMisalignment;
 	FusionVector gyroscopeSensitivity;
 	FusionVector gyroscopeOffset;
@@ -69,7 +69,7 @@ struct device3_calibration_t {
 
 #define MAX_PACKET_SIZE 64
 
-static bool send_payload(device3_type* device, uint8_t size, const uint8_t* payload) {
+static bool send_payload(device_imu_type* device, uint8_t size, const uint8_t* payload) {
 	int payload_size = size;
 	if (payload_size > MAX_PACKET_SIZE) {
 		payload_size = MAX_PACKET_SIZE;
@@ -78,14 +78,14 @@ static bool send_payload(device3_type* device, uint8_t size, const uint8_t* payl
 	int transferred = hid_write(device->handle, payload, payload_size);
 	
 	if (transferred != payload_size) {
-		device3_error("Sending payload failed");
+		device_imu_error("Sending payload failed");
 		return false;
 	}
 	
 	return (transferred == size);
 }
 
-static bool recv_payload(device3_type* device, uint8_t size, uint8_t* payload) {
+static bool recv_payload(device_imu_type* device, uint8_t size, uint8_t* payload) {
 	int payload_size = size;
 	if (payload_size > MAX_PACKET_SIZE) {
 		payload_size = MAX_PACKET_SIZE;
@@ -102,14 +102,14 @@ static bool recv_payload(device3_type* device, uint8_t size, uint8_t* payload) {
 	}
 	
 	if (transferred != payload_size) {
-		device3_error("Receiving payload failed");
+		device_imu_error("Receiving payload failed");
 		return false;
 	}
 	
 	return (transferred == size);
 }
 
-struct __attribute__((__packed__)) device3_payload_packet_t {
+struct __attribute__((__packed__)) device_imu_payload_packet_t {
 	uint8_t head;
 	uint32_t checksum;
 	uint16_t length;
@@ -117,10 +117,10 @@ struct __attribute__((__packed__)) device3_payload_packet_t {
 	uint8_t data [56];
 };
 
-typedef struct device3_payload_packet_t device3_payload_packet_type;
+typedef struct device_imu_payload_packet_t device_imu_payload_packet_type;
 
-static bool send_payload_msg(device3_type* device, uint8_t msgid, uint8_t len, const uint8_t* data) {
-	static device3_payload_packet_type packet;
+static bool send_payload_msg(device_imu_type* device, uint8_t msgid, uint8_t len, const uint8_t* data) {
+	static device_imu_payload_packet_type packet;
 	
 	const uint16_t packet_len = 3 + len;
 	const uint16_t payload_len = 5 + packet_len;
@@ -140,12 +140,12 @@ static bool send_payload_msg(device3_type* device, uint8_t msgid, uint8_t len, c
 	return send_payload(device, payload_len, (uint8_t*) (&packet));
 }
 
-static bool send_payload_msg_signal(device3_type* device, uint8_t msgid, uint8_t signal) {
+static bool send_payload_msg_signal(device_imu_type* device, uint8_t msgid, uint8_t signal) {
 	return send_payload_msg(device, msgid, 1, &signal);
 }
 
-static bool recv_payload_msg(device3_type* device, uint8_t msgid, uint8_t len, uint8_t* data) {
-	static device3_payload_packet_type packet;
+static bool recv_payload_msg(device_imu_type* device, uint8_t msgid, uint8_t len, uint8_t* data) {
+	static device_imu_payload_packet_type packet;
 	
 	packet.head = 0;
 	packet.length = 0;
@@ -193,20 +193,20 @@ static FusionQuaternion json_object_get_quaternion(struct json_object* obj) {
 	return quaternion;
 }
 
-device3_error_type device3_open(device3_type* device, device3_event_callback callback) {
+device_imu_error_type device_imu_open(device_imu_type* device, device_imu_event_callback callback) {
 	if (!device) {
-		device3_error("No device");
-		return DEVICE3_ERROR_NO_DEVICE;
+		device_imu_error("No device");
+		return DEVICE_IMU_ERROR_NO_DEVICE;
 	}
 	
-	memset(device, 0, sizeof(device3_type));
+	memset(device, 0, sizeof(device_imu_type));
 	device->vendor_id 	= xreal_vendor_id;
 	device->product_id 	= 0;
 	device->callback 	= callback;
 	
 	if (!device_init()) {
-		device3_error("Not initialized");
-		return DEVICE3_ERROR_NOT_INITIALIZED;
+		device_imu_error("Not initialized");
+		return DEVICE_IMU_ERROR_NOT_INITIALIZED;
 	}
 
 	struct hid_device_info* info = hid_enumerate(
@@ -231,52 +231,52 @@ device3_error_type device3_open(device3_type* device, device3_event_callback cal
 	hid_free_enumeration(info);
 	
 	if (!device->handle) {
-		device3_error("No handle");
-		return DEVICE3_ERROR_NO_HANDLE;
+		device_imu_error("No handle");
+		return DEVICE_IMU_ERROR_NO_HANDLE;
 	}
 
-	if (!send_payload_msg_signal(device, DEVICE3_MSG_START_IMU_DATA, 0x0)) {
-		device3_error("Failed sending payload to stop imu data stream");
-		return DEVICE3_ERROR_PAYLOAD_FAILED;
+	if (!send_payload_msg_signal(device, DEVICE_IMU_MSG_START_IMU_DATA, 0x0)) {
+		device_imu_error("Failed sending payload to stop imu data stream");
+		return DEVICE_IMU_ERROR_PAYLOAD_FAILED;
 	}
 
-	device3_clear(device);
+	device_imu_clear(device);
 	
-	if (!send_payload_msg(device, DEVICE3_MSG_GET_STATIC_ID, 0, NULL)) {
-		device3_error("Failed sending payload to get static id");
-		return DEVICE3_ERROR_PAYLOAD_FAILED;
+	if (!send_payload_msg(device, DEVICE_IMU_MSG_GET_STATIC_ID, 0, NULL)) {
+		device_imu_error("Failed sending payload to get static id");
+		return DEVICE_IMU_ERROR_PAYLOAD_FAILED;
 	}
 	
 	uint32_t static_id = 0;
-	if (recv_payload_msg(device, DEVICE3_MSG_GET_STATIC_ID, 4, (uint8_t*) &static_id)) {
+	if (recv_payload_msg(device, DEVICE_IMU_MSG_GET_STATIC_ID, 4, (uint8_t*) &static_id)) {
 		device->static_id = static_id;
 	} else {
 		device->static_id = 0x20220101;
 	}
 	
-	device->calibration = malloc(sizeof(device3_calibration_type));
-	device3_reset_calibration(device);
+	device->calibration = malloc(sizeof(device_imu_calibration_type));
+	device_imu_reset_calibration(device);
 	
-	if (!send_payload_msg(device, DEVICE3_MSG_GET_CAL_DATA_LENGTH, 0, NULL)) {
-		device3_error("Failed sending payload to get calibration data length");
-		return DEVICE3_ERROR_PAYLOAD_FAILED;
+	if (!send_payload_msg(device, DEVICE_IMU_MSG_GET_CAL_DATA_LENGTH, 0, NULL)) {
+		device_imu_error("Failed sending payload to get calibration data length");
+		return DEVICE_IMU_ERROR_PAYLOAD_FAILED;
 	}
 	
 	uint32_t calibration_len = 0;
-	if (recv_payload_msg(device, DEVICE3_MSG_GET_CAL_DATA_LENGTH, 4, (uint8_t*) &calibration_len)) {
+	if (recv_payload_msg(device, DEVICE_IMU_MSG_GET_CAL_DATA_LENGTH, 4, (uint8_t*) &calibration_len)) {
 		char* calibration_data = malloc(calibration_len + 1);
 		
 		uint32_t position = 0;
 		while (position < calibration_len) {
 			const uint32_t remaining = (calibration_len - position);
 			
-			if (!send_payload_msg(device, DEVICE3_MSG_CAL_DATA_GET_NEXT_SEGMENT, 0, NULL)) {
+			if (!send_payload_msg(device, DEVICE_IMU_MSG_CAL_DATA_GET_NEXT_SEGMENT, 0, NULL)) {
 				break;
 			}
 			
 			const uint8_t next = (remaining > 56? 56 : remaining);
 			
-			if (!recv_payload_msg(device, DEVICE3_MSG_CAL_DATA_GET_NEXT_SEGMENT, next, (uint8_t*) calibration_data + position)) {
+			if (!recv_payload_msg(device, DEVICE_IMU_MSG_CAL_DATA_GET_NEXT_SEGMENT, next, (uint8_t*) calibration_data + position)) {
 				break;
 			}
 			
@@ -320,9 +320,9 @@ device3_error_type device3_open(device3_type* device, device3_event_callback cal
 		free(calibration_data);
 	}
 	
-	if (!send_payload_msg_signal(device, DEVICE3_MSG_START_IMU_DATA, 0x1)) {
-		device3_error("Failed sending payload to start imu data stream");
-		return DEVICE3_ERROR_PAYLOAD_FAILED;
+	if (!send_payload_msg_signal(device, DEVICE_IMU_MSG_START_IMU_DATA, 0x1)) {
+		device_imu_error("Failed sending payload to start imu data stream");
+		return DEVICE_IMU_ERROR_PAYLOAD_FAILED;
 	}
 	
 	const uint32_t SAMPLE_RATE = 1000;
@@ -345,18 +345,18 @@ device3_error_type device3_open(device3_type* device, device3_event_callback cal
 	};
 	
 	FusionAhrsSetSettings((FusionAhrs*) device->ahrs, &settings);
-	return DEVICE3_ERROR_NO_ERROR;
+	return DEVICE_IMU_ERROR_NO_ERROR;
 }
 
-device3_error_type device3_reset_calibration(device3_type* device) {
+device_imu_error_type device_imu_reset_calibration(device_imu_type* device) {
 	if (!device) {
-		device3_error("No device");
-		return DEVICE3_ERROR_NO_DEVICE;
+		device_imu_error("No device");
+		return DEVICE_IMU_ERROR_NO_DEVICE;
 	}
 	
 	if (!device->calibration) {
-		device3_error("Not allocated");
-		return DEVICE3_ERROR_NO_ALLOCATION;
+		device_imu_error("Not allocated");
+		return DEVICE_IMU_ERROR_NO_ALLOCATION;
 	}
 	
 	device->calibration->gyroscopeMisalignment = FUSION_IDENTITY_MATRIX;
@@ -378,79 +378,79 @@ device3_error_type device3_reset_calibration(device3_type* device) {
 	device->calibration->noises.element.w = 0.0f;
 }
 
-device3_error_type device3_load_calibration(device3_type* device, const char* path) {
+device_imu_error_type device_imu_load_calibration(device_imu_type* device, const char* path) {
 	if (!device) {
-		device3_error("No device");
-		return DEVICE3_ERROR_NO_DEVICE;
+		device_imu_error("No device");
+		return DEVICE_IMU_ERROR_NO_DEVICE;
 	}
 	
 	if (!device->calibration) {
-		device3_error("Not allocated");
-		return DEVICE3_ERROR_NO_ALLOCATION;
+		device_imu_error("Not allocated");
+		return DEVICE_IMU_ERROR_NO_ALLOCATION;
 	}
 	
 	FILE* file = fopen(path, "rb");
 	if (!file) {
-		device3_error("No file opened");
-		return DEVICE3_ERROR_FILE_NOT_OPEN;
+		device_imu_error("No file opened");
+		return DEVICE_IMU_ERROR_FILE_NOT_OPEN;
 	}
 
-	device3_error_type result = DEVICE3_ERROR_NO_ERROR;
+	device_imu_error_type result = DEVICE_IMU_ERROR_NO_ERROR;
 	
 	size_t count;
-	count = fread(device->calibration, 1, sizeof(device3_calibration_type), file);
+	count = fread(device->calibration, 1, sizeof(device_imu_calibration_type), file);
 	
-	if (sizeof(device3_calibration_type) != count) {
-		device3_error("Not fully loaded");
-		result = DEVICE3_ERROR_LOADING_FAILED;
+	if (sizeof(device_imu_calibration_type) != count) {
+		device_imu_error("Not fully loaded");
+		result = DEVICE_IMU_ERROR_LOADING_FAILED;
 	}
 	
 	if (0 != fclose(file)) {
-		device3_error("No file closed");
-		return DEVICE3_ERROR_FILE_NOT_CLOSED;
+		device_imu_error("No file closed");
+		return DEVICE_IMU_ERROR_FILE_NOT_CLOSED;
 	}
 	
 	return result;
 }
 
-device3_error_type device3_save_calibration(device3_type* device, const char* path) {
+device_imu_error_type device_imu_save_calibration(device_imu_type* device, const char* path) {
 	if (!device) {
-		device3_error("No device");
-		return DEVICE3_ERROR_NO_DEVICE;
+		device_imu_error("No device");
+		return DEVICE_IMU_ERROR_NO_DEVICE;
 	}
 	
 	if (!device->calibration) {
-		device3_error("Not allocated");
-		return DEVICE3_ERROR_NO_ALLOCATION;
+		device_imu_error("Not allocated");
+		return DEVICE_IMU_ERROR_NO_ALLOCATION;
 	}
 	
 	FILE* file = fopen(path, "wb");
 	if (!file) {
-		device3_error("No file opened");
-		return DEVICE3_ERROR_FILE_NOT_OPEN;
+		device_imu_error("No file opened");
+		return DEVICE_IMU_ERROR_FILE_NOT_OPEN;
 	}
 
-	device3_error_type result = DEVICE3_ERROR_NO_ERROR;
+	device_imu_error_type result = DEVICE_IMU_ERROR_NO_ERROR;
 	
 	size_t count;
-	count = fwrite(device->calibration, 1, sizeof(device3_calibration_type), file);
+	count = fwrite(device->calibration, 1, sizeof(device_imu_calibration_type), file);
 	
-	if (sizeof(device3_calibration_type) != count) {
-		device3_error("Not fully saved");
-		result = DEVICE3_ERROR_SAVING_FAILED;
+	if (sizeof(device_imu_calibration_type) != count) {
+		device_imu_error("Not fully saved");
+		result = DEVICE_IMU_ERROR_SAVING_FAILED;
 	}
 	
 	if (0 != fclose(file)) {
-		device3_error("No file closed");
-		return DEVICE3_ERROR_FILE_NOT_CLOSED;
+		device_imu_error("No file closed");
+		return DEVICE_IMU_ERROR_FILE_NOT_CLOSED;
 	}
 	
 	return result;
 }
 
-static void device3_callback(device3_type* device,
+static void device_imu_callback(device_imu_type* device,
 							 uint64_t timestamp,
-							 device3_event_type event) {
+							 device_imu_event_type event) {
 	if (!device->callback) {
 		return;
 	}
@@ -489,7 +489,7 @@ static int16_t pack16bit_signed_bizarre(const uint8_t* data) {
 	return (int16_t) unsigned_value;
 }
 
-static void readIMU_from_packet(const device3_packet_type* packet,
+static void readIMU_from_packet(const device_imu_packet_type* packet,
 								FusionVector* gyroscope,
 								FusionVector* accelerometer,
 								FusionVector* magnetometer) {
@@ -566,7 +566,7 @@ static void iterate_iron_offset_estimation(const FusionVector* magnetometer, Fus
 	hardIronOffset->axis.z = cz;
 }
 
-static void apply_calibration(const device3_type* device,
+static void apply_calibration(const device_imu_type* device,
 							  FusionVector* gyroscope,
 							  FusionVector* accelerometer,
 							  FusionVector* magnetometer) {
@@ -678,32 +678,32 @@ static void apply_calibration(const device3_type* device,
 	post_biased_coordinate_system(&m, magnetometer);
 }
 
-device3_error_type device3_clear(device3_type* device) {
-	return device3_read(device, 10);
+device_imu_error_type device_imu_clear(device_imu_type* device) {
+	return device_imu_read(device, 10);
 }
 
-device3_error_type device3_calibrate(device3_type* device, uint32_t iterations, bool gyro, bool accel, bool magnet) {
+device_imu_error_type device_imu_calibrate(device_imu_type* device, uint32_t iterations, bool gyro, bool accel, bool magnet) {
 	if (!device) {
-		device3_error("No device");
-		return DEVICE3_ERROR_NO_DEVICE;
+		device_imu_error("No device");
+		return DEVICE_IMU_ERROR_NO_DEVICE;
 	}
 
 	if (!device->handle) {
-		device3_error("No handle");
-		return DEVICE3_ERROR_NO_HANDLE;
+		device_imu_error("No handle");
+		return DEVICE_IMU_ERROR_NO_HANDLE;
 	}
 
 	if (!device->calibration) {
-		device3_error("No calibration allocated");
-		return DEVICE3_ERROR_NO_ALLOCATION;
+		device_imu_error("No calibration allocated");
+		return DEVICE_IMU_ERROR_NO_ALLOCATION;
 	}
 	
-	if (MAX_PACKET_SIZE != sizeof(device3_packet_type)) {
-		device3_error("Not proper size");
-		return DEVICE3_ERROR_WRONG_SIZE;
+	if (MAX_PACKET_SIZE != sizeof(device_imu_packet_type)) {
+		device_imu_error("Not proper size");
+		return DEVICE_IMU_ERROR_WRONG_SIZE;
 	}
 	
-	device3_packet_type packet;
+	device_imu_packet_type packet;
 	int transferred;
 	
 	bool initialized = false;
@@ -718,7 +718,7 @@ device3_error_type device3_calibrate(device3_type* device, uint32_t iterations, 
 
 	FusionVector prev_accel;
 	while (iterations > 0) {
-		memset(&packet, 0, sizeof(device3_packet_type));
+		memset(&packet, 0, sizeof(device_imu_packet_type));
 		
 		transferred = hid_read(
 			device->handle, 
@@ -727,8 +727,8 @@ device3_error_type device3_calibrate(device3_type* device, uint32_t iterations, 
 		);
 
 		if (transferred == -1) {
-			device3_error("Device may be unplugged");
-			return DEVICE3_ERROR_UNPLUGGED;
+			device_imu_error("Device may be unplugged");
+			return DEVICE_IMU_ERROR_UNPLUGGED;
 		}
 
 		if (transferred == 0) {
@@ -736,8 +736,8 @@ device3_error_type device3_calibrate(device3_type* device, uint32_t iterations, 
 		}
 
 		if (MAX_PACKET_SIZE != transferred) {
-			device3_error("Unexpected packet size");
-			return DEVICE3_ERROR_UNEXPECTED;
+			device_imu_error("Unexpected packet size");
+			return DEVICE_IMU_ERROR_UNEXPECTED;
 		}
 		
 		if ((packet.signature[0] != 0x01) || (packet.signature[1] != 0x02)) {
@@ -800,27 +800,27 @@ device3_error_type device3_calibrate(device3_type* device, uint32_t iterations, 
 		}
 	}
 	
-	return DEVICE3_ERROR_NO_ERROR;
+	return DEVICE_IMU_ERROR_NO_ERROR;
 }
 
-device3_error_type device3_read(device3_type* device, int timeout) {
+device_imu_error_type device_imu_read(device_imu_type* device, int timeout) {
 	if (!device) {
-		device3_error("No device");
-		return DEVICE3_ERROR_NO_DEVICE;
+		device_imu_error("No device");
+		return DEVICE_IMU_ERROR_NO_DEVICE;
 	}
 
 	if (!device->handle) {
-		device3_error("No handle");
-		return DEVICE3_ERROR_NO_HANDLE;
+		device_imu_error("No handle");
+		return DEVICE_IMU_ERROR_NO_HANDLE;
 	}
 	
-	if (MAX_PACKET_SIZE != sizeof(device3_packet_type)) {
-		device3_error("Not proper size");
-		return DEVICE3_ERROR_WRONG_SIZE;
+	if (MAX_PACKET_SIZE != sizeof(device_imu_packet_type)) {
+		device_imu_error("Not proper size");
+		return DEVICE_IMU_ERROR_WRONG_SIZE;
 	}
 	
-	device3_packet_type packet;
-	memset(&packet, 0, sizeof(device3_packet_type));
+	device_imu_packet_type packet;
+	memset(&packet, 0, sizeof(device_imu_packet_type));
 	
 	int transferred = hid_read_timeout(
 		device->handle, 
@@ -830,29 +830,29 @@ device3_error_type device3_read(device3_type* device, int timeout) {
 	);
 
 	if (transferred == -1) {
-		device3_error("Device may be unplugged");
-		return DEVICE3_ERROR_UNPLUGGED;
+		device_imu_error("Device may be unplugged");
+		return DEVICE_IMU_ERROR_UNPLUGGED;
 	}
 	
 	if (transferred == 0) {
-		return DEVICE3_ERROR_NO_ERROR;
+		return DEVICE_IMU_ERROR_NO_ERROR;
 	}
 	
 	if (MAX_PACKET_SIZE != transferred) {
-		device3_error("Unexpected packet size");
-		return DEVICE3_ERROR_UNEXPECTED;
+		device_imu_error("Unexpected packet size");
+		return DEVICE_IMU_ERROR_UNEXPECTED;
 	}
 	
 	const uint64_t timestamp = le64toh(packet.timestamp);
 	
 	if ((packet.signature[0] == 0xaa) && (packet.signature[1] == 0x53)) {
-		device3_callback(device, timestamp, DEVICE3_EVENT_INIT);
-		return DEVICE3_ERROR_NO_ERROR;
+		device_imu_callback(device, timestamp, DEVICE_IMU_EVENT_INIT);
+		return DEVICE_IMU_ERROR_NO_ERROR;
 	}
 	
 	if ((packet.signature[0] != 0x01) || (packet.signature[1] != 0x02)) {
-		device3_error("Not matching signature");
-		return DEVICE3_ERROR_WRONG_SIGNATURE;
+		device_imu_error("Not matching signature");
+		return DEVICE_IMU_ERROR_WRONG_SIGNATURE;
 	}
 	
 	const uint64_t delta = timestamp - device->last_timestamp;
@@ -891,41 +891,41 @@ device3_error_type device3_read(device3_type* device, int timeout) {
 			FusionAhrsUpdateNoMagnetometer((FusionAhrs*) device->ahrs, gyroscope, accelerometer, deltaTime);
 		}
 
-		const device3_quat_type orientation = device3_get_orientation(device->ahrs);
+		const device_imu_quat_type orientation = device_imu_get_orientation(device->ahrs);
 
 		// TODO: fix detection of this case; quat.x as a nan value is only a side-effect of some issue with ahrs or
 		//       the gyro/accel/magnet readings
 		if (isnan(orientation.x) || isnan(orientation.y) || isnan(orientation.z) || isnan(orientation.w)) {
-			device3_error("Invalid orientation reading");
-			return DEVICE3_ERROR_INVALID_VALUE;
+			device_imu_error("Invalid orientation reading");
+			return DEVICE_IMU_ERROR_INVALID_VALUE;
 		}
 	}
 	
-	device3_callback(device, timestamp, DEVICE3_EVENT_UPDATE);
-	return DEVICE3_ERROR_NO_ERROR;
+	device_imu_callback(device, timestamp, DEVICE_IMU_EVENT_UPDATE);
+	return DEVICE_IMU_ERROR_NO_ERROR;
 }
 
-device3_vec3_type device3_get_earth_acceleration(const device3_ahrs_type* ahrs) {
+device_imu_vec3_type device_imu_get_earth_acceleration(const device_imu_ahrs_type* ahrs) {
 	FusionVector acceleration = ahrs? FusionAhrsGetEarthAcceleration((const FusionAhrs*) ahrs) : FUSION_VECTOR_ZERO;
-	device3_vec3_type a;
+	device_imu_vec3_type a;
 	a.x = acceleration.axis.x;
 	a.y = acceleration.axis.y;
 	a.z = acceleration.axis.z;
 	return a;
 }
 
-device3_vec3_type device3_get_linear_acceleration(const device3_ahrs_type* ahrs) {
+device_imu_vec3_type device_imu_get_linear_acceleration(const device_imu_ahrs_type* ahrs) {
 	FusionVector acceleration = ahrs? FusionAhrsGetLinearAcceleration((const FusionAhrs*) ahrs) : FUSION_VECTOR_ZERO;
-	device3_vec3_type a;
+	device_imu_vec3_type a;
 	a.x = acceleration.axis.x;
 	a.y = acceleration.axis.y;
 	a.z = acceleration.axis.z;
 	return a;
 }
 
-device3_quat_type device3_get_orientation(const device3_ahrs_type* ahrs) {
+device_imu_quat_type device_imu_get_orientation(const device_imu_ahrs_type* ahrs) {
 	FusionQuaternion quaternion = ahrs? FusionAhrsGetQuaternion((const FusionAhrs*) ahrs) : FUSION_IDENTITY_QUATERNION;
-	device3_quat_type q;
+	device_imu_quat_type q;
 	q.x = quaternion.element.x;
 	q.y = quaternion.element.y;
 	q.z = quaternion.element.z;
@@ -933,24 +933,24 @@ device3_quat_type device3_get_orientation(const device3_ahrs_type* ahrs) {
 	return q;
 }
 
-device3_euler_type device3_get_euler(device3_quat_type quat) {
+device_imu_euler_type device_imu_get_euler(device_imu_quat_type quat) {
 	FusionQuaternion quaternion;
 	quaternion.element.x = quat.x;
 	quaternion.element.y = quat.y;
 	quaternion.element.z = quat.z;
 	quaternion.element.w = quat.w;
 	FusionEuler euler = FusionQuaternionToEuler(quaternion);
-	device3_euler_type e;
+	device_imu_euler_type e;
 	e.roll = euler.angle.roll;
 	e.pitch = euler.angle.pitch;
 	e.yaw = euler.angle.yaw;
 	return e;
 }
 
-device3_error_type device3_close(device3_type* device) {
+device_imu_error_type device_imu_close(device_imu_type* device) {
 	if (!device) {
-		device3_error("No device");
-		return DEVICE3_ERROR_NO_DEVICE;
+		device_imu_error("No device");
+		return DEVICE_IMU_ERROR_NO_DEVICE;
 	}
 	
 	if (device->calibration) {
@@ -969,8 +969,8 @@ device3_error_type device3_close(device3_type* device) {
 		hid_close(device->handle);
 	}
 	
-	memset(device, 0, sizeof(device3_type));
+	memset(device, 0, sizeof(device_imu_type));
 	device_exit();
 
-	return DEVICE3_ERROR_NO_ERROR;
+	return DEVICE_IMU_ERROR_NO_ERROR;
 }

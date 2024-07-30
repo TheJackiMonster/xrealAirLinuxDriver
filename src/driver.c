@@ -22,8 +22,8 @@
 // THE SOFTWARE.
 //
 
-#include "device3.h"
-#include "device4.h"
+#include "device_imu.h"
+#include "device_mcu.h"
 
 #include <stdio.h>
 #include <sys/wait.h>
@@ -32,16 +32,16 @@
 #include <math.h>
 
 void test3(uint64_t timestamp,
-		   device3_event_type event,
-		   const device3_ahrs_type* ahrs) {
-	static device3_quat_type old;
+		   device_imu_event_type event,
+		   const device_imu_ahrs_type* ahrs) {
+	static device_imu_quat_type old;
 	static float dmax = -1.0f;
 	
-	if (event != DEVICE3_EVENT_UPDATE) {
+	if (event != DEVICE_IMU_EVENT_UPDATE) {
 		return;
 	}
 	
-	device3_quat_type q = device3_get_orientation(ahrs);
+	device_imu_quat_type q = device_imu_get_orientation(ahrs);
 	
 	const float dx = (old.x - q.x) * (old.x - q.x);
 	const float dy = (old.y - q.y) * (old.y - q.y);
@@ -56,10 +56,10 @@ void test3(uint64_t timestamp,
 		dmax = (d > dmax? d : dmax);
 	}
 	
-	device3_euler_type e = device3_get_euler(q);
+	device_imu_euler_type e = device_imu_get_euler(q);
 	
 	if (d >= 0.00005f) {
-		device3_euler_type e0 = device3_get_euler(old);
+		device_imu_euler_type e0 = device_imu_get_euler(old);
 		
 		printf("Roll: %f; Pitch: %f; Yaw: %f\n", e0.roll, e0.pitch, e0.yaw);
 		printf("Roll: %f; Pitch: %f; Yaw: %f\n", e.roll, e.pitch, e.yaw);
@@ -75,17 +75,17 @@ void test3(uint64_t timestamp,
 }
 
 void test4(uint64_t timestamp,
-		   device4_event_type event,
+		   device_mcu_event_type event,
 		   uint8_t brightness,
 		   const char* msg) {
 	switch (event) {
-		case DEVICE4_EVENT_MESSAGE:
+		case DEVICE_MCU_EVENT_MESSAGE:
 			printf("Message: `%s`\n", msg);
 			break;
-		case DEVICE4_EVENT_BRIGHTNESS_UP:
+		case DEVICE_MCU_EVENT_BRIGHTNESS_UP:
 			printf("Increase Brightness: %u\n", brightness);
 			break;
-		case DEVICE4_EVENT_BRIGHTNESS_DOWN:
+		case DEVICE_MCU_EVENT_BRIGHTNESS_DOWN:
 			printf("Decrease Brightness: %u\n", brightness);
 			break;
 		default:
@@ -102,28 +102,28 @@ int main(int argc, const char** argv) {
 	}
 	
 	if (pid == 0) {
-		device3_type dev3;
-		if (DEVICE3_ERROR_NO_ERROR != device3_open(&dev3, test3)) {
+		device_imu_type dev3;
+		if (DEVICE_IMU_ERROR_NO_ERROR != device_imu_open(&dev3, test3)) {
 			return 1;
 		}
 
-		device3_clear(&dev3);
-		device3_calibrate(&dev3, 1000, true, true, false);
-		while (DEVICE3_ERROR_NO_ERROR == device3_read(&dev3, -1));
-		device3_close(&dev3);
+		device_imu_clear(&dev3);
+		device_imu_calibrate(&dev3, 1000, true, true, false);
+		while (DEVICE_IMU_ERROR_NO_ERROR == device_imu_read(&dev3, -1));
+		device_imu_close(&dev3);
 		return 0;
 	} else {
 		int status = 0;
 
-		device4_type dev4;
-		if (DEVICE4_ERROR_NO_ERROR != device4_open(&dev4, test4)) {
+		device_mcu_type dev4;
+		if (DEVICE_MCU_ERROR_NO_ERROR != device_mcu_open(&dev4, test4)) {
 			status = 1;
 			goto exit;
 		}
 
-		device4_clear(&dev4);
-		while (DEVICE4_ERROR_NO_ERROR == device4_read(&dev4, -1));
-		device4_close(&dev4);
+		device_mcu_clear(&dev4);
+		while (DEVICE_MCU_ERROR_NO_ERROR == device_mcu_read(&dev4, -1));
+		device_mcu_close(&dev4);
 		
 	exit:
 		if (pid != waitpid(pid, &status, 0)) {
