@@ -18,11 +18,36 @@ const uint16_t xreal_product_ids[NUM_SUPPORTED_PRODUCTS] = {
     0x0426  // XREAL Air 2 Ultra
 };
 
-bool is_xreal_product_id(uint16_t product_id) {
+const int xreal_imu_interface_ids[NUM_SUPPORTED_PRODUCTS] = {
+    3, // XREAL Air
+    3, // XREAL Air 2
+    3, // XREAL Air 2 Pro
+    2  // XREAL Air 2 Ultra
+};
+
+const int xreal_mcu_interface_ids[NUM_SUPPORTED_PRODUCTS] = {
+    4,  // XREAL Air
+    4,  // XREAL Air 2
+    4,  // XREAL Air 2 Pro
+    -1  // TODO - XREAL Air 2 Ultra MCU support via interface 0
+};
+
+int xreal_imu_interface_id(uint16_t product_id) {
     for (int i = 0; i < NUM_SUPPORTED_PRODUCTS; i++) {
         if (xreal_product_ids[i] == product_id) {
-            return true;
+            return xreal_imu_interface_ids[i];
         }
     }
-    return false;
+
+    return -1;
+}
+
+int xreal_mcu_interface_id(uint16_t product_id) {
+    for (int i = 0; i < NUM_SUPPORTED_PRODUCTS; i++) {
+        if (xreal_product_ids[i] == product_id) {
+            return xreal_mcu_interface_ids[i];
+        }
+    }
+
+    return -1;
 }

@@ -216,9 +216,10 @@ device_imu_error_type device_imu_open(device_imu_type* device, device_imu_event_
 
 	struct hid_device_info* it = info;
 	while (it) {
-		if (is_xreal_product_id(it->product_id) && it->interface_number == 3) {
+		int interface_id = xreal_imu_interface_id(it->product_id);
+		if (interface_id != -1 && it->interface_number == interface_id) {
 #ifndef NDEBUG
-            printf("Found device with product_id: 0x%x\n", it->product_id);
+            printf("Found IMU device with product_id 0x%x on interface %d\n", it->product_id, interface_id);
 #endif
 			device->product_id = it->product_id;
 			device->handle = hid_open_path(it->path);
