@@ -195,9 +195,10 @@ device_mcu_error_type device_mcu_open(device_mcu_type* device, device_mcu_event_
 
 	struct hid_device_info* it = info;
 	while (it) {
-		if (is_xreal_product_id(it->product_id) && it->interface_number == 4) {
+		int interface_id = xreal_mcu_interface_id(it->product_id);
+		if (interface_id != -1 && it->interface_number == interface_id) {
 #ifndef NDEBUG
-            printf("Found device with product_id: 0x%x\n", it->product_id);
+            printf("Found MCU device with product_id 0x%x on interface %d\n", it->product_id, interface_id);
 #endif
 			device->product_id = it->product_id;
 			device->handle = hid_open_path(it->path);
