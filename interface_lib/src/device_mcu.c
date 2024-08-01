@@ -517,7 +517,7 @@ device_mcu_error_type device_mcu_update_display_mode(device_mcu_type* device) {
 	return DEVICE_MCU_ERROR_NO_ERROR;
 }
 
-device_mcu_error_type device_mcu_update_mcu_firmware(device_mcu_type* device, const char* path) {
+device_mcu_error_type device_mcu_update_firmware(device_mcu_type* device, const char* path) {
 	if (!device) {
 		device_mcu_error("No device");
 		return DEVICE_MCU_ERROR_NO_DEVICE;

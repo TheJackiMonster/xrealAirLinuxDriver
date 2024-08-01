@@ -2,7 +2,7 @@
 //
 // Created by thejackimonster on 29.03.23.
 //
-// Copyright (c) 2023 thejackimonster. All rights reserved.
+// Copyright (c) 2023-2024 thejackimonster. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -135,12 +135,12 @@ struct __attribute__((__packed__)) device_mcu_packet_t {
 };
 
 enum device_mcu_event_t {
-	DEVICE_MCU_EVENT_UNKNOWN 			= 0,
-	DEVICE_MCU_EVENT_SCREEN_ON 		= 1,
-	DEVICE_MCU_EVENT_SCREEN_OFF 		= 2,
-	DEVICE_MCU_EVENT_BRIGHTNESS_UP 	= 3,
-	DEVICE_MCU_EVENT_BRIGHTNESS_DOWN 	= 4,
-	DEVICE_MCU_EVENT_MESSAGE 			= 5,
+	DEVICE_MCU_EVENT_UNKNOWN = 0,
+	DEVICE_MCU_EVENT_SCREEN_ON = 1,
+	DEVICE_MCU_EVENT_SCREEN_OFF = 2,
+	DEVICE_MCU_EVENT_BRIGHTNESS_UP = 3,
+	DEVICE_MCU_EVENT_BRIGHTNESS_DOWN = 4,
+	DEVICE_MCU_EVENT_MESSAGE = 5,
 };
 
 typedef enum device_mcu_error_t device_mcu_error_type;
@@ -183,7 +183,7 @@ device_mcu_error_type device_mcu_poll_display_mode(device_mcu_type* device);
 
 device_mcu_error_type device_mcu_update_display_mode(device_mcu_type* device);
 
-device_mcu_error_type device_mcu_update_mcu_firmware(device_mcu_type* device, const char* path);
+device_mcu_error_type device_mcu_update_firmware(device_mcu_type* device, const char* path);
 
 device_mcu_error_type device_mcu_close(device_mcu_type* device);
 

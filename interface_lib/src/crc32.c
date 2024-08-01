@@ -1,7 +1,7 @@
 //
 // Created by thejackimonster on 21.04.23.
 //
-// Copyright (c) 2023 thejackimonster. All rights reserved.
+// Copyright (c) 2023-2024 thejackimonster. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -100,5 +100,3 @@ uint32_t crc32_checksum(const uint8_t* buf, uint32_t len) {
 	
 	return ~CRC32_data;
 }
-
-

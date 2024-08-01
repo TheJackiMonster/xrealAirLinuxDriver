@@ -22,7 +22,7 @@
 // THE SOFTWARE.
 //
 
-#include "device4.h"
+#include "device_mcu.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -67,13 +67,13 @@ int main(int argc, const char** argv) {
         return 0;
     }
 
-	device4_type dev4;
-	if (DEVICE4_ERROR_NO_ERROR != device4_open(&dev4, NULL)) {
+	device_mcu_type dev;
+	if (DEVICE_MCU_ERROR_NO_ERROR != device_mcu_open(&dev, NULL)) {
 		return 1;
 	}
 	
-	device4_clear(&dev4);
-	device4_update_mcu_firmware(&dev4, path);
-	device4_close(&dev4);
+	device_mcu_clear(&dev);
+	device_mcu_update_firmware(&dev, path);
+	device_mcu_close(&dev);
 	return 0;
 }

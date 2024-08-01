@@ -1,7 +1,7 @@
 //
 // Created by thejackimonster on 05.04.23.
 //
-// Copyright (c) 2023 thejackimonster. All rights reserved.
+// Copyright (c) 2023-2024 thejackimonster. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -22,22 +22,22 @@
 // THE SOFTWARE.
 //
 
-#include "device4.h"
+#include "device_mcu.h"
 
 #include <stdio.h>
 
-void test4(uint64_t timestamp,
-		   device4_event_type event,
-		   uint8_t brightness,
-		   const char* msg) {
+void test(uint64_t timestamp,
+          device_mcu_event_type event,
+          uint8_t brightness,
+          const char* msg) {
 	switch (event) {
-		case DEVICE4_EVENT_MESSAGE:
+		case DEVICE_MCU_EVENT_MESSAGE:
 			printf("Message: `%s`\n", msg);
 			break;
-		case DEVICE4_EVENT_BRIGHTNESS_UP:
+		case DEVICE_MCU_EVENT_BRIGHTNESS_UP:
 			printf("Increase Brightness: %u\n", brightness);
 			break;
-		case DEVICE4_EVENT_BRIGHTNESS_DOWN:
+		case DEVICE_MCU_EVENT_BRIGHTNESS_DOWN:
 			printf("Decrease Brightness: %u\n", brightness);
 			break;
 		default:
@@ -46,13 +46,13 @@ void test4(uint64_t timestamp,
 }
 
 int main(int argc, const char** argv) {
-	device4_type dev4;
-	if (DEVICE4_ERROR_NO_ERROR != device4_open(&dev4, test4)) {
+	device_mcu_type dev;
+	if (DEVICE_MCU_ERROR_NO_ERROR != device_mcu_open(&dev, test)) {
 		return 1;
 	}
 	
-	device4_clear(&dev4);
-	while (DEVICE4_ERROR_NO_ERROR == device4_read(&dev4, -1));
-	device4_close(&dev4);
+	device_mcu_clear(&dev);
+	while (DEVICE_MCU_ERROR_NO_ERROR == device_mcu_read(&dev, -1));
+	device_mcu_close(&dev);
 	return 0;
 }

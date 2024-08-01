@@ -1,7 +1,7 @@
 //
 // Created by thejackimonster on 29.03.23.
 //
-// Copyright (c) 2023 thejackimonster. All rights reserved.
+// Copyright (c) 2023-2024 thejackimonster. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -31,9 +31,9 @@
 
 #include <math.h>
 
-void test3(uint64_t timestamp,
-		   device_imu_event_type event,
-		   const device_imu_ahrs_type* ahrs) {
+void test_imu(uint64_t timestamp,
+              device_imu_event_type event,
+              const device_imu_ahrs_type* ahrs) {
 	static device_imu_quat_type old;
 	static float dmax = -1.0f;
 	
@@ -74,10 +74,10 @@ void test3(uint64_t timestamp,
 	old = q;
 }
 
-void test4(uint64_t timestamp,
-		   device_mcu_event_type event,
-		   uint8_t brightness,
-		   const char* msg) {
+void test_mcu(uint64_t timestamp,
+              device_mcu_event_type event,
+              uint8_t brightness,
+              const char* msg) {
 	switch (event) {
 		case DEVICE_MCU_EVENT_MESSAGE:
 			printf("Message: `%s`\n", msg);
@@ -102,28 +102,28 @@ int main(int argc, const char** argv) {
 	}
 	
 	if (pid == 0) {
-		device_imu_type dev3;
-		if (DEVICE_IMU_ERROR_NO_ERROR != device_imu_open(&dev3, test3)) {
+		device_imu_type dev_imu;
+		if (DEVICE_IMU_ERROR_NO_ERROR != device_imu_open(&dev_imu, test_imu)) {
 			return 1;
 		}
 
-		device_imu_clear(&dev3);
-		device_imu_calibrate(&dev3, 1000, true, true, false);
-		while (DEVICE_IMU_ERROR_NO_ERROR == device_imu_read(&dev3, -1));
-		device_imu_close(&dev3);
+		device_imu_clear(&dev_imu);
+		device_imu_calibrate(&dev_imu, 1000, true, true, false);
+		while (DEVICE_IMU_ERROR_NO_ERROR == device_imu_read(&dev_imu, -1));
+		device_imu_close(&dev_imu);
 		return 0;
 	} else {
 		int status = 0;
 
-		device_mcu_type dev4;
-		if (DEVICE_MCU_ERROR_NO_ERROR != device_mcu_open(&dev4, test4)) {
+		device_mcu_type dev_mcu;
+		if (DEVICE_MCU_ERROR_NO_ERROR != device_mcu_open(&dev_mcu, test_mcu)) {
 			status = 1;
 			goto exit;
 		}
 
-		device_mcu_clear(&dev4);
-		while (DEVICE_MCU_ERROR_NO_ERROR == device_mcu_read(&dev4, -1));
-		device_mcu_close(&dev4);
+		device_mcu_clear(&dev_mcu);
+		while (DEVICE_MCU_ERROR_NO_ERROR == device_mcu_read(&dev_mcu, -1));
+		device_mcu_close(&dev_mcu);
 		
 	exit:
 		if (pid != waitpid(pid, &status, 0)) {
