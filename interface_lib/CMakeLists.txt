@@ -12,7 +12,7 @@ add_library(
 		xrealAirLibrary
 		src/crc32.c
 		src/device.c
-		src/device3.c
+		src/device_imu.c
 		src/device4.c
 		src/hid_ids.c
 )

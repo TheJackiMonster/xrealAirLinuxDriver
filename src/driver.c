@@ -1,7 +1,7 @@
 //
 // Created by thejackimonster on 29.03.23.
 //
-// Copyright (c) 2023 thejackimonster. All rights reserved.
+// Copyright (c) 2023-2024 thejackimonster. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -22,7 +22,7 @@
 // THE SOFTWARE.
 //
 
-#include "device3.h"
+#include "device_imu.h"
 #include "device4.h"
 
 #include <stdio.h>
@@ -32,16 +32,16 @@
 #include <math.h>
 
 void test3(uint64_t timestamp,
-		   device3_event_type event,
-		   const device3_ahrs_type* ahrs) {
-	static device3_quat_type old;
+		   device_imu_event_type event,
+		   const device_imu_ahrs_type* ahrs) {
+	static device_imu_quat_type old;
 	static float dmax = -1.0f;
 	
-	if (event != DEVICE3_EVENT_UPDATE) {
+	if (event != DEVICE_IMU_EVENT_UPDATE) {
 		return;
 	}
 	
-	device3_quat_type q = device3_get_orientation(ahrs);
+	device_imu_quat_type q = device_imu_get_orientation(ahrs);
 	
 	const float dx = (old.x - q.x) * (old.x - q.x);
 	const float dy = (old.y - q.y) * (old.y - q.y);
@@ -56,10 +56,10 @@ void test3(uint64_t timestamp,
 		dmax = (d > dmax? d : dmax);
 	}
 	
-	device3_euler_type e = device3_get_euler(q);
+	device_imu_euler_type e = device_imu_get_euler(q);
 	
 	if (d >= 0.00005f) {
-		device3_euler_type e0 = device3_get_euler(old);
+		device_imu_euler_type e0 = device_imu_get_euler(old);
 		
 		printf("Roll: %f; Pitch: %f; Yaw: %f\n", e0.roll, e0.pitch, e0.yaw);
 		printf("Roll: %f; Pitch: %f; Yaw: %f\n", e.roll, e.pitch, e.yaw);
@@ -102,15 +102,15 @@ int main(int argc, const char** argv) {
 	}
 	
 	if (pid == 0) {
-		device3_type dev3;
-		if (DEVICE3_ERROR_NO_ERROR != device3_open(&dev3, test3)) {
+		device_imu_type dev3;
+		if (DEVICE_IMU_ERROR_NO_ERROR != device_imu_open(&dev3, test3)) {
 			return 1;
 		}
 
-		device3_clear(&dev3);
-		device3_calibrate(&dev3, 1000, true, true, false);
-		while (DEVICE3_ERROR_NO_ERROR == device3_read(&dev3, -1));
-		device3_close(&dev3);
+		device_imu_clear(&dev3);
+		device_imu_calibrate(&dev3, 1000, true, true, false);
+		while (DEVICE_IMU_ERROR_NO_ERROR == device_imu_read(&dev3, -1));
+		device_imu_close(&dev3);
 		return 0;
 	} else {
 		int status = 0;

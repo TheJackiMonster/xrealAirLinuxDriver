@@ -1,7 +1,7 @@
 //
 // Created by thejackimonster on 05.04.23.
 //
-// Copyright (c) 2023 thejackimonster. All rights reserved.
+// Copyright (c) 2023-2024 thejackimonster. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -22,23 +22,23 @@
 // THE SOFTWARE.
 //
 
-#include "device3.h"
+#include "device_imu.h"
 
 #include <stdio.h>
 
 void test3(uint64_t timestamp,
-		   device3_event_type event,
-		   const device3_ahrs_type* ahrs) {
-	device3_quat_type orientation;
-	device3_euler_type euler;
+		   device_imu_event_type event,
+		   const device_imu_ahrs_type* ahrs) {
+	device_imu_quat_type orientation;
+	device_imu_euler_type euler;
 	
 	switch (event) {
-		case DEVICE3_EVENT_INIT:
+		case DEVICE_IMU_EVENT_INIT:
 			printf("Initialized\n");
 			break;
-		case DEVICE3_EVENT_UPDATE:
-			orientation = device3_get_orientation(ahrs);
-			euler = device3_get_euler(orientation);
+		case DEVICE_IMU_EVENT_UPDATE:
+			orientation = device_imu_get_orientation(ahrs);
+			euler = device_imu_get_euler(orientation);
 			printf("Roll: %.2f; Pitch: %.2f; Yaw: %.2f\n", euler.roll, euler.pitch, euler.yaw);
 			break;
 		default:
@@ -47,13 +47,13 @@ void test3(uint64_t timestamp,
 }
 
 int main(int argc, const char** argv) {
-	device3_type dev3;
-	if (DEVICE3_ERROR_NO_ERROR != device3_open(&dev3, test3)) {
+	device_imu_type dev3;
+	if (DEVICE_IMU_ERROR_NO_ERROR != device_imu_open(&dev3, test3)) {
 		return 1;
 	}
 	
-	device3_clear(&dev3);
-	while (DEVICE3_ERROR_NO_ERROR == device3_read(&dev3, -1));
-	device3_close(&dev3);
+	device_imu_clear(&dev3);
+	while (DEVICE_IMU_ERROR_NO_ERROR == device_imu_read(&dev3, -1));
+	device_imu_close(&dev3);
 	return 0;
 }
