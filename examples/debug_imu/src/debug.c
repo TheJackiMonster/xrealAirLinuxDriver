@@ -26,9 +26,9 @@
 
 #include <stdio.h>
 
-void test3(uint64_t timestamp,
-		   device_imu_event_type event,
-		   const device_imu_ahrs_type* ahrs) {
+void test(uint64_t timestamp,
+          device_imu_event_type event,
+          const device_imu_ahrs_type* ahrs) {
 	device_imu_quat_type orientation;
 	device_imu_euler_type euler;
 	
@@ -47,13 +47,13 @@ void test3(uint64_t timestamp,
 }
 
 int main(int argc, const char** argv) {
-	device_imu_type dev3;
-	if (DEVICE_IMU_ERROR_NO_ERROR != device_imu_open(&dev3, test3)) {
+	device_imu_type dev;
+	if (DEVICE_IMU_ERROR_NO_ERROR != device_imu_open(&dev, test)) {
 		return 1;
 	}
 	
-	device_imu_clear(&dev3);
-	while (DEVICE_IMU_ERROR_NO_ERROR == device_imu_read(&dev3, -1));
-	device_imu_close(&dev3);
+	device_imu_clear(&dev);
+	while (DEVICE_IMU_ERROR_NO_ERROR == device_imu_read(&dev, -1));
+	device_imu_close(&dev);
 	return 0;
 }

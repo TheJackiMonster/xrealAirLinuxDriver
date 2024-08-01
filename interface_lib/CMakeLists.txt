@@ -13,7 +13,7 @@ add_library(
 		src/crc32.c
 		src/device.c
 		src/device_imu.c
-		src/device4.c
+		src/device_mcu.c
 		src/hid_ids.c
 )
 
