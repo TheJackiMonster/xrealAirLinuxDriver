@@ -43,6 +43,8 @@
 #define device_mcu_error(msg) (0)
 #endif
 
+#define device_mcu_warning(msg) device_mcu_error(msg)
+
 #define MAX_PACKET_SIZE 64
 #define PACKET_HEAD 0xFD
 
@@ -231,8 +233,7 @@ device_mcu_error_type device_mcu_open(device_mcu_type* device, device_mcu_event_
 	device->activated = (activated != 0);
 
 	if (!device->activated) {
-		device_mcu_error("Device is not activated");
-		return DEVICE_MCU_ERROR_NO_ACTIVATION;
+		device_mcu_warning("Device is not activated");
 	}
 
 	if (!send_payload_action(device, DEVICE_MCU_MSG_R_MCU_APP_FW_VERSION, 0, NULL)) {
@@ -382,6 +383,30 @@ device_mcu_error_type device_mcu_read(device_mcu_type* device, int timeout) {
 		case DEVICE_MCU_MSG_P_START_HEARTBEAT: {
 			break;
 		}
+		case DEVICE_MCU_MSG_P_DISPLAY_TOGGLED: {
+			const uint8_t value = packet.data[0];
+
+			device->active = value;
+			
+			if (device->active) {
+				device_mcu_callback(
+						device,
+						timestamp,
+						DEVICE_MCU_EVENT_SCREEN_ON,
+						device->brightness,
+						NULL
+				);
+			} else {
+				device_mcu_callback(
+						device,
+						timestamp,
+						DEVICE_MCU_EVENT_SCREEN_OFF,
+						device->brightness,
+						NULL
+				);
+			}
+			break;
+		}
 		case DEVICE_MCU_MSG_P_BUTTON_PRESSED: {
 			const uint8_t phys_button = packet.data[0];
 			const uint8_t virt_button = packet.data[4];
@@ -427,6 +452,66 @@ device_mcu_error_type device_mcu_read(device_mcu_type* device, int timeout) {
 							device,
 							timestamp,
 							DEVICE_MCU_EVENT_BRIGHTNESS_DOWN,
+							device->brightness,
+							NULL
+					);
+					break;
+				case DEVICE_MCU_BUTTON_VIRT_UP:
+					if (device->control_mode == DEVICE_MCU_CONTROL_MODE_VOLUME)
+						device_mcu_callback(
+								device,
+								timestamp,
+								DEVICE_MCU_EVENT_VOLUME_UP,
+								device->brightness,
+								NULL
+						);
+					break;
+				case DEVICE_MCU_BUTTON_VIRT_DOWN:
+					if (device->control_mode == DEVICE_MCU_CONTROL_MODE_VOLUME)
+						device_mcu_callback(
+								device,
+								timestamp,
+								DEVICE_MCU_EVENT_VOLUME_DOWN,
+								device->brightness,
+								NULL
+						);
+					break;
+				case DEVICE_MCU_BUTTON_VIRT_MODE_2D:
+					device_mcu_callback(
+							device,
+							timestamp,
+							DEVICE_MCU_EVENT_DISPLAY_MODE_2D,
+							device->brightness,
+							NULL
+					);
+					break;
+				case DEVICE_MCU_BUTTON_VIRT_MODE_3D:
+					device_mcu_callback(
+							device,
+							timestamp,
+							DEVICE_MCU_EVENT_DISPLAY_MODE_3D,
+							device->brightness,
+							NULL
+					);
+					break;
+				case DEVICE_MCU_BUTTON_VIRT_BLEND_CYCLE:
+					device->blend_state = value;
+
+					device_mcu_callback(
+							device,
+							timestamp,
+							DEVICE_MCU_EVENT_BLEND_CYCLE,
+							device->brightness,
+							NULL		
+					);
+					break;
+				case DEVICE_MCU_BUTTON_VIRT_CONTROL_TOGGLE:
+					device->control_mode = value;
+
+					device_mcu_callback(
+							device,
+							timestamp,
+							DEVICE_MCU_EVENT_CONTROL_TOGGLE,
 							device->brightness,
 							NULL
 					);

@@ -53,7 +53,7 @@ const int xreal_mcu_interface_ids[NUM_SUPPORTED_PRODUCTS] = {
     4,  // XREAL Air
     4,  // XREAL Air 2
     4,  // XREAL Air 2 Pro
-    -1  // TODO - XREAL Air 2 Ultra MCU support via interface 0
+    0   // XREAL Air 2 Ultra MCU
 };
 
 static int xreal_product_index(uint16_t product_id) {

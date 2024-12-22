@@ -31,14 +31,38 @@ void test(uint64_t timestamp,
           uint8_t brightness,
           const char* msg) {
 	switch (event) {
-		case DEVICE_MCU_EVENT_MESSAGE:
-			printf("Message: `%s`\n", msg);
+		case DEVICE_MCU_EVENT_SCREEN_OFF:
+			printf("Toggle Screen OFF!\n");
+			break;
+		case DEVICE_MCU_EVENT_SCREEN_ON:
+			printf("Toggle Screen ON!\n");
 			break;
 		case DEVICE_MCU_EVENT_BRIGHTNESS_UP:
 			printf("Increase Brightness: %u\n", brightness);
 			break;
 		case DEVICE_MCU_EVENT_BRIGHTNESS_DOWN:
 			printf("Decrease Brightness: %u\n", brightness);
+			break;
+		case DEVICE_MCU_EVENT_MESSAGE:
+			printf("Message: `%s`\n", msg);
+			break;
+		case DEVICE_MCU_EVENT_DISPLAY_MODE_2D:
+			printf("Toggle Display Mode 2D!\n");
+			break;
+		case DEVICE_MCU_EVENT_DISPLAY_MODE_3D:
+			printf("Toggle Display Mode 3D!\n");
+			break;
+		case DEVICE_MCU_EVENT_BLEND_CYCLE:
+			printf("Cycle Screen Blending!\n");
+			break;
+		case DEVICE_MCU_EVENT_CONTROL_TOGGLE:
+			printf("Toggle Control Mode!\n");
+			break;
+		case DEVICE_MCU_EVENT_VOLUME_UP:
+			printf("Increase Volume!\n");
+			break;
+		case DEVICE_MCU_EVENT_VOLUME_DOWN:
+			printf("Decrease Volume!\n");
 			break;
 		default:
 			break;
