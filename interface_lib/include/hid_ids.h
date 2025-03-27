@@ -47,6 +47,8 @@ bool is_xreal_product_id(uint16_t product_id);
 int xreal_imu_interface_id(uint16_t product_id);
 int xreal_mcu_interface_id(uint16_t product_id);
 
+uint16_t xreal_imu_max_payload_size(uint16_t product_id);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

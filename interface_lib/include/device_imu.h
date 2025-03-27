@@ -138,6 +138,7 @@ struct device_imu_t {
 	uint16_t product_id;
 	
 	void* handle;
+	uint16_t max_payload_size;
 	
 	uint32_t static_id;
 	

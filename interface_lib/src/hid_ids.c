@@ -56,6 +56,13 @@ const int xreal_mcu_interface_ids[NUM_SUPPORTED_PRODUCTS] = {
     0   // XREAL Air 2 Ultra MCU
 };
 
+const uint16_t xreal_imu_max_payload_sizes[NUM_SUPPORTED_PRODUCTS] = {
+    64, // XREAL Air
+    64, // XREAL Air 2
+    64, // XREAL Air 2 Pro
+    512 // XREAL Air 2 Ultra
+};
+
 static int xreal_product_index(uint16_t product_id) {
     for (int i = 0; i < NUM_SUPPORTED_PRODUCTS; i++) {
         if (xreal_product_ids[i] == product_id) {
@@ -87,5 +94,15 @@ int xreal_mcu_interface_id(uint16_t product_id) {
         return xreal_mcu_interface_ids[index];
     } else {
         return -1;
+    }
+}
+
+uint16_t xreal_imu_max_payload_size(uint16_t product_id) {
+    const int index = xreal_product_index(product_id);
+
+    if (index >= 0) {
+        return xreal_imu_max_payload_sizes[index];
+    } else {
+        return 0;
     }
 }

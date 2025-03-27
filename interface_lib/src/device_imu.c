@@ -67,12 +67,10 @@ struct device_imu_calibration_t {
 	FusionQuaternion noises;
 };
 
-#define MAX_PACKET_SIZE 64
-
-static bool send_payload(device_imu_type* device, uint8_t size, const uint8_t* payload) {
+static bool send_payload(device_imu_type* device, uint16_t size, const uint8_t* payload) {
 	int payload_size = size;
-	if (payload_size > MAX_PACKET_SIZE) {
-		payload_size = MAX_PACKET_SIZE;
+	if (payload_size > device->max_payload_size) {
+		payload_size = device->max_payload_size;
 	}
 	
 	int transferred = hid_write(device->handle, payload, payload_size);
@@ -85,10 +83,10 @@ static bool send_payload(device_imu_type* device, uint8_t size, const uint8_t* p
 	return (transferred == size);
 }
 
-static bool recv_payload(device_imu_type* device, uint8_t size, uint8_t* payload) {
+static bool recv_payload(device_imu_type* device, uint16_t size, uint8_t* payload) {
 	int payload_size = size;
-	if (payload_size > MAX_PACKET_SIZE) {
-		payload_size = MAX_PACKET_SIZE;
+	if (payload_size > device->max_payload_size) {
+		payload_size = device->max_payload_size;
 	}
 	
 	int transferred = hid_read(device->handle, payload, payload_size);
@@ -114,12 +112,12 @@ struct __attribute__((__packed__)) device_imu_payload_packet_t {
 	uint32_t checksum;
 	uint16_t length;
 	uint8_t msgid;
-	uint8_t data [56];
+	uint8_t data [512 - 8];
 };
 
 typedef struct device_imu_payload_packet_t device_imu_payload_packet_type;
 
-static bool send_payload_msg(device_imu_type* device, uint8_t msgid, uint8_t len, const uint8_t* data) {
+static bool send_payload_msg(device_imu_type* device, uint8_t msgid, uint16_t len, const uint8_t* data) {
 	static device_imu_payload_packet_type packet;
 	
 	const uint16_t packet_len = 3 + len;
@@ -144,7 +142,7 @@ static bool send_payload_msg_signal(device_imu_type* device, uint8_t msgid, uint
 	return send_payload_msg(device, msgid, 1, &signal);
 }
 
-static bool recv_payload_msg(device_imu_type* device, uint8_t msgid, uint8_t len, uint8_t* data) {
+static bool recv_payload_msg(device_imu_type* device, uint8_t msgid, uint16_t len, uint8_t* data) {
 	static device_imu_payload_packet_type packet;
 	
 	packet.head = 0;
@@ -223,6 +221,7 @@ device_imu_error_type device_imu_open(device_imu_type* device, device_imu_event_
 #endif
 			device->product_id = it->product_id;
 			device->handle = hid_open_path(it->path);
+			device->max_payload_size = xreal_imu_max_payload_size(device->product_id);
 			break;
 		}
 
@@ -236,7 +235,8 @@ device_imu_error_type device_imu_open(device_imu_type* device, device_imu_event_
 		return DEVICE_IMU_ERROR_NO_HANDLE;
 	}
 
-	if (!send_payload_msg_signal(device, DEVICE_IMU_MSG_START_IMU_DATA, 0x0)) {
+	if ((!send_payload_msg_signal(device, DEVICE_IMU_MSG_START_IMU_DATA, 0x0)) ||
+        (!recv_payload_msg(device, DEVICE_IMU_MSG_START_IMU_DATA, 0, NULL))) {
 		device_imu_error("Failed sending payload to stop imu data stream");
 		return DEVICE_IMU_ERROR_PAYLOAD_FAILED;
 	}
@@ -257,7 +257,7 @@ device_imu_error_type device_imu_open(device_imu_type* device, device_imu_event_
 	
 	device->calibration = malloc(sizeof(device_imu_calibration_type));
 	device_imu_reset_calibration(device);
-	
+
 	if (!send_payload_msg(device, DEVICE_IMU_MSG_GET_CAL_DATA_LENGTH, 0, NULL)) {
 		device_imu_error("Failed sending payload to get calibration data length");
 		return DEVICE_IMU_ERROR_PAYLOAD_FAILED;
@@ -265,17 +265,18 @@ device_imu_error_type device_imu_open(device_imu_type* device, device_imu_event_
 	
 	uint32_t calibration_len = 0;
 	if (recv_payload_msg(device, DEVICE_IMU_MSG_GET_CAL_DATA_LENGTH, 4, (uint8_t*) &calibration_len)) {
+		const uint16_t max_packet_size = (device->max_payload_size - 8);
 		char* calibration_data = malloc(calibration_len + 1);
 		
 		uint32_t position = 0;
 		while (position < calibration_len) {
 			const uint32_t remaining = (calibration_len - position);
-			
+
 			if (!send_payload_msg(device, DEVICE_IMU_MSG_CAL_DATA_GET_NEXT_SEGMENT, 0, NULL)) {
 				break;
 			}
 			
-			const uint8_t next = (remaining > 56? 56 : remaining);
+			const uint16_t next = (remaining > max_packet_size? max_packet_size : remaining);
 			
 			if (!recv_payload_msg(device, DEVICE_IMU_MSG_CAL_DATA_GET_NEXT_SEGMENT, next, (uint8_t*) calibration_data + position)) {
 				break;
@@ -320,12 +321,13 @@ device_imu_error_type device_imu_open(device_imu_type* device, device_imu_event_
 		json_tokener_free(tokener);
 		free(calibration_data);
 	}
-	
-	if (!send_payload_msg_signal(device, DEVICE_IMU_MSG_START_IMU_DATA, 0x1)) {
+
+	if ((!send_payload_msg_signal(device, DEVICE_IMU_MSG_START_IMU_DATA, 0x1)) ||
+		(!recv_payload_msg(device, DEVICE_IMU_MSG_START_IMU_DATA, 0, NULL))) {
 		device_imu_error("Failed sending payload to start imu data stream");
 		return DEVICE_IMU_ERROR_PAYLOAD_FAILED;
 	}
-	
+
 	const uint32_t SAMPLE_RATE = 1000;
 	
 	device->offset = malloc(sizeof(FusionOffset));
@@ -699,7 +701,7 @@ device_imu_error_type device_imu_calibrate(device_imu_type* device, uint32_t ite
 		return DEVICE_IMU_ERROR_NO_ALLOCATION;
 	}
 	
-	if (MAX_PACKET_SIZE != sizeof(device_imu_packet_type)) {
+	if (sizeof(device_imu_packet_type) > device->max_payload_size) {
 		device_imu_error("Not proper size");
 		return DEVICE_IMU_ERROR_WRONG_SIZE;
 	}
@@ -724,7 +726,7 @@ device_imu_error_type device_imu_calibrate(device_imu_type* device, uint32_t ite
 		transferred = hid_read(
 			device->handle, 
 			(uint8_t*) &packet, 
-			MAX_PACKET_SIZE
+			sizeof(device_imu_packet_type)
 		);
 
 		if (transferred == -1) {
@@ -736,7 +738,7 @@ device_imu_error_type device_imu_calibrate(device_imu_type* device, uint32_t ite
 			continue;
 		}
 
-		if (MAX_PACKET_SIZE != transferred) {
+		if (sizeof(device_imu_packet_type) != transferred) {
 			device_imu_error("Unexpected packet size");
 			return DEVICE_IMU_ERROR_UNEXPECTED;
 		}
@@ -815,7 +817,7 @@ device_imu_error_type device_imu_read(device_imu_type* device, int timeout) {
 		return DEVICE_IMU_ERROR_NO_HANDLE;
 	}
 	
-	if (MAX_PACKET_SIZE != sizeof(device_imu_packet_type)) {
+	if (sizeof(device_imu_packet_type) > device->max_payload_size) {
 		device_imu_error("Not proper size");
 		return DEVICE_IMU_ERROR_WRONG_SIZE;
 	}
@@ -826,7 +828,7 @@ device_imu_error_type device_imu_read(device_imu_type* device, int timeout) {
 	int transferred = hid_read_timeout(
 		device->handle, 
 		(uint8_t*) &packet, 
-		MAX_PACKET_SIZE,
+		sizeof(device_imu_packet_type),
 		timeout
 	);
 
@@ -839,7 +841,7 @@ device_imu_error_type device_imu_read(device_imu_type* device, int timeout) {
 		return DEVICE_IMU_ERROR_NO_ERROR;
 	}
 	
-	if (MAX_PACKET_SIZE != transferred) {
+	if (sizeof(device_imu_packet_type) != transferred) {
 		device_imu_error("Unexpected packet size");
 		return DEVICE_IMU_ERROR_UNEXPECTED;
 	}
@@ -967,6 +969,11 @@ device_imu_error_type device_imu_close(device_imu_type* device) {
 	}
 
 	if (device->handle) {
+		if ((!send_payload_msg_signal(device, DEVICE_IMU_MSG_START_IMU_DATA, 0x0)) ||
+			(!recv_payload_msg(device, DEVICE_IMU_MSG_START_IMU_DATA, 0, NULL))) {
+			device_imu_error("Failed sending payload to stop imu data stream");
+		}
+
 		hid_close(device->handle);
 	}
 	
