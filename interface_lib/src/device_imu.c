@@ -94,7 +94,7 @@ static bool recv_payload(device_imu_type* device, uint16_t size, uint8_t* payloa
 	if (transferred >= payload_size) {
 		transferred = payload_size;
 	}
-	
+
 	if (transferred == 0) {
 		return false;
 	}
@@ -152,13 +152,11 @@ static bool recv_payload_msg(device_imu_type* device, uint8_t msgid, uint16_t le
 	const uint16_t packet_len = 3 + len;
 	const uint16_t payload_len = 5 + packet_len;
 	
-	if (!recv_payload(device, payload_len, (uint8_t*) (&packet))) {
-		return false;
-	}
-	
-	if (packet.msgid != msgid) {
-		return false;
-	}
+	do {
+		if (!recv_payload(device, payload_len, (uint8_t*) (&packet))) {
+			return false;
+		}
+	} while (packet.msgid != msgid);
 	
 	memcpy(data, packet.data, len);
 	return true;
