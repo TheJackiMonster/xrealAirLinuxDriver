@@ -1,4 +1,4 @@
-# Custom user-space driver for the Xreal Air, Xreal Air 2 and Xreal Air 2 Pro to use it on Linux
+# Custom user-space driver for the Xreal Air, Xreal Air 2, Xreal Air 2 Pro and Xreal Air 2 Ultra to use it on Linux
 
 ## Information before use
 
