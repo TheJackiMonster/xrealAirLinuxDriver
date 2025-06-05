@@ -1,7 +1,7 @@
 //
 // Created by thejackimonster on 30.03.23.
 //
-// Copyright (c) 2023-2024 thejackimonster. All rights reserved.
+// Copyright (c) 2023-2025 thejackimonster. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -28,6 +28,9 @@
 #include <Fusion/FusionAxes.h>
 #include <Fusion/FusionMath.h>
 #include <float.h>
+#include <json-c/json_object.h>
+#include <json-c/json_types.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -48,6 +51,29 @@
 #define device_imu_error(msg) (0)
 #endif
 
+struct device_imu_camera_sensor_t {
+	FusionMatrix cameraMisalignment;
+	FusionVector cameraOffset;
+
+	uint16_t resolution [2];
+
+	float cc [2];
+	float fc [2];
+
+	uint32_t num_kc;
+	float* kc;
+};
+
+struct device_imu_camera_t {
+	uint32_t num_sensors;
+	device_imu_camera_sensor_type* sensors;
+};
+
+struct device_imu_camera_calibration_t {
+	uint32_t num_cameras;
+	device_imu_camera_type *cameras;
+};
+
 struct device_imu_calibration_t {
 	FusionMatrix gyroscopeMisalignment;
 	FusionVector gyroscopeSensitivity;
@@ -65,6 +91,8 @@ struct device_imu_calibration_t {
 	FusionVector hardIronOffset;
 	
 	FusionQuaternion noises;
+
+	device_imu_camera_calibration_type cam;
 };
 
 static bool send_payload(device_imu_type* device, uint16_t size, const uint8_t* payload) {
@@ -189,6 +217,87 @@ static FusionQuaternion json_object_get_quaternion(struct json_object* obj) {
 	return quaternion;
 }
 
+static uint32_t json_object_get_array_f32(struct json_object* obj, float** array, uint32_t n) {
+	if ((!json_object_is_type(obj, json_type_array)) ||
+		  ((n > 0) && (json_object_array_length(obj) != n))) {
+		return 0;
+	}
+
+	if (n == 0) {
+		n = json_object_array_length(obj);
+		*array = malloc(sizeof(float) * n);
+	}
+
+	for (uint32_t i = 0; i < n; i++) {
+		(*array)[i] = (float) json_object_get_double(json_object_array_get_idx(obj, i));
+	}
+
+	return n;
+}
+
+static uint32_t json_object_get_array_u16(struct json_object* obj, uint16_t** array, uint32_t n) {
+	if ((!json_object_is_type(obj, json_type_array)) ||
+		  ((n > 0) && (json_object_array_length(obj) != n))) {
+		return 0;
+	}
+
+	if (n == 0) {
+		n = json_object_array_length(obj);
+		*array = malloc(sizeof(uint16_t) * n);
+	}
+
+	for (uint32_t i = 0; i < n; i++) {
+		(*array)[i] = (uint16_t) json_object_get_int(json_object_array_get_idx(obj, i));
+	}
+
+	return n;
+}
+
+static void init_device_imu_camera(device_imu_camera_type *camera, json_object *cam) {
+	uint32_t num_sensors = json_object_get_int(json_object_object_get(cam, "num_of_cameras"));
+
+	device_imu_camera_sensor_type *sensors = NULL;
+
+	if (num_sensors > 0) {
+		sensors = malloc(sizeof(device_imu_camera_sensor_type) * num_sensors);
+	}
+
+	if (!sensors) {
+		num_sensors = 0;
+	}
+
+	for (uint32_t n = 0; n < num_sensors; n++) {
+		device_imu_camera_sensor_type *sensor = &(sensors[n]);
+
+		char device_name [64];
+		snprintf(device_name, 64, "device_%u", (n + 1));
+
+		struct json_object* dev = json_object_object_get(cam, device_name);
+
+		FusionQuaternion imu_q_cam = json_object_get_quaternion(json_object_object_get(dev, "imu_q_cam"));
+		FusionVector cam_offset = json_object_get_vector(json_object_object_get(dev, "imu_p_cam"));
+
+		sensor->cameraMisalignment = FusionQuaternionToMatrix(imu_q_cam);
+		sensor->cameraOffset = cam_offset;
+
+		uint16_t* resolution = sensor->resolution;
+		float* cc = sensor->cc;
+		float* fc = sensor->fc;
+		float* kc = sensor->kc;
+		
+		json_object_get_array_u16(json_object_object_get(dev, "resolution"), &resolution, 2);
+
+		json_object_get_array_f32(json_object_object_get(dev, "cc"), &cc, 2);
+		json_object_get_array_f32(json_object_object_get(dev, "fc"), &fc, 2);
+
+		sensor->num_kc = json_object_get_array_f32(json_object_object_get(dev, "kc"), &kc, 0);
+		sensor->kc = kc;
+	}
+
+	camera->num_sensors = num_sensors;
+	camera->sensors = sensors;
+}
+
 device_imu_error_type device_imu_open(device_imu_type* device, device_imu_event_callback callback) {
 	if (!device) {
 		device_imu_error("No device");
@@ -254,6 +363,8 @@ device_imu_error_type device_imu_open(device_imu_type* device, device_imu_event_
 	}
 	
 	device->calibration = malloc(sizeof(device_imu_calibration_type));
+	memset(device->calibration, 0, sizeof(device_imu_calibration_type));
+
 	device_imu_reset_calibration(device);
 
 	if (!send_payload_msg(device, DEVICE_IMU_MSG_GET_CAL_DATA_LENGTH, 0, NULL)) {
@@ -315,6 +426,32 @@ device_imu_error_type device_imu_open(device_imu_type* device, device_imu_event_
 		device->calibration->magnetometerOffset = mag_bias;
 		
 		device->calibration->noises = imu_noises;
+
+		struct json_object* rgb = json_object_object_get(root, "RGB_camera");
+		struct json_object* slam = json_object_object_get(root, "SLAM_camera");
+
+		uint32_t num_cameras_rgb = json_object_get_int(json_object_object_get(rgb, "num_of_cameras"));
+		uint32_t num_cameras_slam = json_object_get_int(json_object_object_get(slam, "num_of_cameras"));
+
+		const uint32_t num_cameras = (num_cameras_rgb > 0? 1 : 0) + (num_cameras_slam > 0? 1 : 0);
+
+		device_imu_camera_type *cameras = NULL;
+		uint32_t camera_index = 0;
+
+		if (num_cameras > 0) {
+			cameras = malloc(sizeof(device_imu_camera_type) * num_cameras);
+		}
+
+		if ((cameras) && (num_cameras_rgb > 0)) {
+			init_device_imu_camera(&(cameras[camera_index++]), rgb);
+		}
+
+		if ((cameras) && (num_cameras_slam > 0)) {
+			init_device_imu_camera(&(cameras[camera_index++]), slam);
+		}
+
+		device->calibration->cam.num_cameras = cameras? num_cameras : 0;
+		device->calibration->cam.cameras = cameras;
 		
 		json_tokener_free(tokener);
 		free(calibration_data);
@@ -377,6 +514,35 @@ device_imu_error_type device_imu_reset_calibration(device_imu_type* device) {
 	
 	device->calibration->noises = FUSION_IDENTITY_QUATERNION;
 	device->calibration->noises.element.w = 0.0f;
+
+	if (device->calibration->cam.cameras) {
+		for (uint32_t i = 0; i < device->calibration->cam.num_cameras; i++) {
+			if (!device->calibration->cam.cameras[i].sensors) {
+				continue;
+			}
+
+			for (uint32_t j = 0; j < device->calibration->cam.cameras[i].num_sensors; j++) {
+				if (!device->calibration->cam.cameras[i].sensors[j].kc) {
+					continue;
+				}
+
+				free(device->calibration->cam.cameras[i].sensors[j].kc);
+
+				device->calibration->cam.cameras[i].sensors[j].num_kc = 0;
+				device->calibration->cam.cameras[i].sensors[j].kc = NULL;
+			}
+
+			free(device->calibration->cam.cameras[i].sensors);
+
+			device->calibration->cam.cameras[i].num_sensors = 0;
+			device->calibration->cam.cameras[i].sensors = NULL;
+		}
+
+		free(device->calibration->cam.cameras);
+	}
+
+	device->calibration->cam.num_cameras = 0;
+	device->calibration->cam.cameras = NULL;
 }
 
 device_imu_error_type device_imu_load_calibration(device_imu_type* device, const char* path) {
@@ -397,11 +563,14 @@ device_imu_error_type device_imu_load_calibration(device_imu_type* device, const
 	}
 
 	device_imu_error_type result = DEVICE_IMU_ERROR_NO_ERROR;
+	const size_t calibration_size = (
+		sizeof(device_imu_calibration_type) - sizeof(device_imu_camera_calibration_type)
+	);
 	
 	size_t count;
-	count = fread(device->calibration, 1, sizeof(device_imu_calibration_type), file);
+	count = fread(device->calibration, 1, calibration_size, file);
 	
-	if (sizeof(device_imu_calibration_type) != count) {
+	if (calibration_size != count) {
 		device_imu_error("Not fully loaded");
 		result = DEVICE_IMU_ERROR_LOADING_FAILED;
 	}
@@ -432,11 +601,14 @@ device_imu_error_type device_imu_save_calibration(device_imu_type* device, const
 	}
 
 	device_imu_error_type result = DEVICE_IMU_ERROR_NO_ERROR;
+	const size_t calibration_size = (
+		sizeof(device_imu_calibration_type) - sizeof(device_imu_camera_calibration_type)
+	);
 	
 	size_t count;
-	count = fwrite(device->calibration, 1, sizeof(device_imu_calibration_type), file);
+	count = fwrite(device->calibration, 1, calibration_size, file);
 	
-	if (sizeof(device_imu_calibration_type) != count) {
+	if (calibration_size != count) {
 		device_imu_error("Not fully saved");
 		result = DEVICE_IMU_ERROR_SAVING_FAILED;
 	}
@@ -948,6 +1120,82 @@ device_imu_euler_type device_imu_get_euler(device_imu_quat_type quat) {
 	return e;
 }
 
+uint32_t device_imu_get_num_of_cameras(device_imu_type *device) {
+	if (!device->calibration) {
+		return 0;
+	}
+
+	return device->calibration->cam.num_cameras;
+}
+
+const device_imu_camera_type* device_imu_get_camera(const device_imu_type *device, uint32_t index) {
+	if ((!device->calibration) || (!device->calibration->cam.cameras)) {
+		return NULL;
+	}
+
+	return &(device->calibration->cam.cameras[index]);
+}
+
+uint32_t device_imu_camera_get_num_of_sensors(const device_imu_camera_type *camera) {
+	if (!camera) {
+		return 0;
+	}
+
+	return camera->num_sensors;
+}
+
+const device_imu_camera_sensor_type* device_imu_camera_get_sensor(const device_imu_camera_type *camera, uint32_t index) {
+	if (!camera->sensors) {
+		return NULL;
+	}
+
+	return &(camera->sensors[index]);
+}
+
+device_imu_size_type device_imu_sensor_get_resolution(const device_imu_camera_sensor_type *sensor) {
+	device_imu_size_type resolution;
+	resolution.width = sensor->resolution[0];
+	resolution.height = sensor->resolution[1];
+	return resolution;
+}
+
+device_imu_vec2_type device_imu_sensor_get_cc(const device_imu_camera_sensor_type *sensor) {
+	device_imu_vec2_type cc;
+	cc.x = sensor->cc[0];
+	cc.y = sensor->cc[1];
+	return cc;
+}
+
+device_imu_vec2_type device_imu_sensor_get_fc(const device_imu_camera_sensor_type *sensor) {
+	device_imu_vec2_type fc;
+	fc.x = sensor->fc[0];
+	fc.y = sensor->fc[1];
+	return fc;
+}
+
+device_imu_error_type device_imu_sensor_get_kc(const device_imu_camera_sensor_type *sensor, uint32_t *num_kc, float *kc) {
+	if ((!sensor) || (!num_kc)) {
+		device_imu_error("Wrong argument");
+		return DEVICE_IMU_ERROR_NO_ALLOCATION;
+	}
+
+	if (!kc) {
+		*num_kc = sensor->num_kc;
+	} else {
+		uint32_t n = *num_kc;
+
+		if (sensor->num_kc < n) {
+			n = sensor->num_kc;
+		}
+
+		for (uint32_t i = 0; i < *num_kc; i++) {
+			kc[i] = sensor->kc[i];
+		}
+	}
+
+	return DEVICE_IMU_ERROR_NO_ERROR;
+}
+
 device_imu_error_type device_imu_close(device_imu_type* device) {
 	if (!device) {
 		device_imu_error("No device");
@@ -955,6 +1203,26 @@ device_imu_error_type device_imu_close(device_imu_type* device) {
 	}
 	
 	if (device->calibration) {
+		if (device->calibration->cam.cameras) {
+			for (uint32_t i = 0; i < device->calibration->cam.num_cameras; i++) {
+				if (!device->calibration->cam.cameras[i].sensors) {
+					continue;
+				}
+
+				for (uint32_t j = 0; j < device->calibration->cam.cameras[i].num_sensors; j++) {
+					if (!device->calibration->cam.cameras[i].sensors[j].kc) {
+						continue;
+					}
+
+					free(device->calibration->cam.cameras[i].sensors[j].kc);
+				}
+
+				free(device->calibration->cam.cameras[i].sensors);
+			}
+
+			free(device->calibration->cam.cameras);
+		}
+
 		free(device->calibration);
 	}
 	

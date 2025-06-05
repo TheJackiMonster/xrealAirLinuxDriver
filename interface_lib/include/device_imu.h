@@ -2,7 +2,7 @@
 //
 // Created by thejackimonster on 30.03.23.
 //
-// Copyright (c) 2023-2024 thejackimonster. All rights reserved.
+// Copyright (c) 2023-2025 thejackimonster. All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -95,7 +95,15 @@ enum device_imu_event_t {
 };
 
 struct device_imu_ahrs_t;
+struct device_imu_camera_sensor_t;
+struct device_imu_camera_t;
+struct device_imu_camera_calibration_t;
 struct device_imu_calibration_t;
+
+struct device_imu_vec2_t {
+	float x;
+	float y;
+};
 
 struct device_imu_vec3_t {
 	float x;
@@ -116,16 +124,27 @@ struct device_imu_euler_t {
 	float yaw;
 };
 
+struct device_imu_size_t {
+	uint16_t width;
+	uint16_t height;
+};
+
 typedef enum device_imu_error_t device_imu_error_type;
 typedef struct device_imu_packet_t device_imu_packet_type;
 typedef enum device_imu_event_t device_imu_event_type;
 
 typedef struct device_imu_ahrs_t device_imu_ahrs_type;
+
+typedef struct device_imu_camera_sensor_t device_imu_camera_sensor_type;
+typedef struct device_imu_camera_t device_imu_camera_type;
+typedef struct device_imu_camera_calibration_t device_imu_camera_calibration_type;
 typedef struct device_imu_calibration_t device_imu_calibration_type;
 
+typedef struct device_imu_vec2_t device_imu_vec2_type;
 typedef struct device_imu_vec3_t device_imu_vec3_type;
 typedef struct device_imu_quat_t device_imu_quat_type;
 typedef struct device_imu_euler_t device_imu_euler_type;
+typedef struct device_imu_size_t device_imu_size_type;
 
 typedef void (*device_imu_event_callback)(
 		uint64_t timestamp,
@@ -175,6 +194,22 @@ device_imu_vec3_type device_imu_get_linear_acceleration(const device_imu_ahrs_ty
 device_imu_quat_type device_imu_get_orientation(const device_imu_ahrs_type* ahrs);
 
 device_imu_euler_type device_imu_get_euler(device_imu_quat_type quat);
+
+uint32_t device_imu_get_num_of_cameras(device_imu_type *device);
+
+const device_imu_camera_type* device_imu_get_camera(const device_imu_type *device, uint32_t index);
+
+uint32_t device_imu_camera_get_num_of_sensors(const device_imu_camera_type *camera);
+
+const device_imu_camera_sensor_type* device_imu_camera_get_sensor(const device_imu_camera_type *camera, uint32_t index);
+
+device_imu_size_type device_imu_sensor_get_resolution(const device_imu_camera_sensor_type *sensor);
+
+device_imu_vec2_type device_imu_sensor_get_cc(const device_imu_camera_sensor_type *sensor);
+
+device_imu_vec2_type device_imu_sensor_get_fc(const device_imu_camera_sensor_type *sensor);
+
+device_imu_error_type device_imu_sensor_get_kc(const device_imu_camera_sensor_type *sensor, uint32_t *num_kc, float *kc);
 
 device_imu_error_type device_imu_close(device_imu_type* device);
 
