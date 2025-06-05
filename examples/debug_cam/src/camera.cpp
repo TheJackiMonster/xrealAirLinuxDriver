@@ -83,33 +83,15 @@ struct CameraCalibration {
     };
 };
 
-const float fx = 239.9401992353717F;
-const float fy = 240.1440084390103F;
-const float cx = 244.88379123391678F;
-const float cy = 315.48779284276173F;
-
-const float k1 = -0.00023167964822506118F;
-const float k2 = +0.0936140967533583F;
-const float k3 = -0.12407217981118918F;
-const float k4 = +0.07253328684439207F;
-const float k5 = -0.02173257609236286F;
-const float k6 = +0.0026589892415407887F;
-const float p1 = +0.002702726113704367F;
-const float p2 = -0.003645482535483966F;
-const float s1 = -0.00747665631898417F;
-const float s2 = -0.0003866048077984273F;
-const float s3 = +0.007856725692160133F;
-const float s4 = +0.0003370697673688772F;
-
 typedef cv::Point2f (*apply_variant_func)(const CameraCalibration& cam, float xn, float yn);
 
 cv::Point2f apply_intrinsic_only(const CameraCalibration& cam, float xn, float yn) {
-  cv::Point2f p;
+    cv::Point2f p;
 
-  p.x = cam.fx * xn + cam.cx;
-  p.y = cam.fy * yn + cam.cy;
+    p.x = cam.fx * xn + cam.cx;
+    p.y = cam.fy * yn + cam.cy;
 
-  return p;
+    return p;
 }
 
 cv::Point2f apply_radial_only(const CameraCalibration& cam, float xn, float yn) {
@@ -133,18 +115,18 @@ cv::Point2f apply_radial_only(const CameraCalibration& cam, float xn, float yn) 
     const float th2 = th * th;
     const float th3 = th * th * th;
 
-    th_dist += k1 * th3;
-    th_dist += k2 * th2 * th3;
-    th_dist += k3 * th2 * th2 * th3;
-    th_dist += k4 * th3 * th3 * th3;
-    th_dist += k5 * th3 * th3 * th2 * th3;
-    th_dist += k6 * th3 * th3 * th2 * th2 * th3;
+    th_dist += cam.k1 * th3;
+    th_dist += cam.k2 * th2 * th3;
+    th_dist += cam.k3 * th2 * th2 * th3;
+    th_dist += cam.k4 * th3 * th3 * th3;
+    th_dist += cam.k5 * th3 * th3 * th2 * th3;
+    th_dist += cam.k6 * th3 * th3 * th2 * th2 * th3;
 
     xn = th_dist * cp;
     yn = th_dist * sp;
 
-    p.x = fx * xn + cx;
-    p.y = fy * yn + cy;
+    p.x = cam.fx * xn + cam.cx;
+    p.y = cam.fy * yn + cam.cy;
 
     return p;
 }
@@ -171,26 +153,26 @@ cv::Point2f apply_radial_tangential(const CameraCalibration& cam, float xn, floa
     const float th2 = th * th;
     const float th3 = th * th * th;
 
-    th_dist += k1 * th3;
-    th_dist += k2 * th2 * th3;
-    th_dist += k3 * th2 * th2 * th3;
-    th_dist += k4 * th3 * th3 * th3;
-    th_dist += k5 * th3 * th3 * th2 * th3;
-    th_dist += k6 * th3 * th3 * th2 * th2 * th3;
+    th_dist += cam.k1 * th3;
+    th_dist += cam.k2 * th2 * th3;
+    th_dist += cam.k3 * th2 * th2 * th3;
+    th_dist += cam.k4 * th3 * th3 * th3;
+    th_dist += cam.k5 * th3 * th3 * th2 * th3;
+    th_dist += cam.k6 * th3 * th3 * th2 * th2 * th3;
 
     xn = th_dist * cp;
     yn = th_dist * sp;
 
     r = xn * xn + yn * yn;
 
-    dx = (2.0F * xn * xn + r) * p1 + 2.0F * xn * yn * p2;
-    dy = (2.0F * yn * yn + r) * p2 + 2.0F * xn * yn * p1;
+    dx = (2.0F * xn * xn + r) * cam.p1 + 2.0F * xn * yn * cam.p2;
+    dy = (2.0F * yn * yn + r) * cam.p2 + 2.0F * xn * yn * cam.p1;
 
     xn += dx;
     yn += dy;
 
-    p.x = fx * xn + cx;
-    p.y = fy * yn + cy;
+    p.x = cam.fx * xn + cam.cx;
+    p.y = cam.fy * yn + cam.cy;
 
     return p;
 }
@@ -219,66 +201,72 @@ cv::Point2f apply_fisheye624(const CameraCalibration& cam, float xn, float yn) {
     const float th5 = th3 * th2;
     const float th6 = th3 * th3;
 
-    th_dist += k1 * th3;
-    th_dist += k2 * th5;
-    th_dist += k3 * th5 * th2;
-    th_dist += k4 * th6 * th3;
-    th_dist += k5 * th6 * th5;
-    th_dist += k6 * th6 * th5 * th2;
+    th_dist += cam.k1 * th3;
+    th_dist += cam.k2 * th2 * th3;
+    th_dist += cam.k3 * th2 * th2 * th3;
+    th_dist += cam.k4 * th3 * th3 * th3;
+    th_dist += cam.k5 * th3 * th3 * th2 * th3;
+    th_dist += cam.k6 * th3 * th3 * th2 * th2 * th3;
 
     xn = th_dist * cp;
     yn = th_dist * sp;
 
     r = xn * xn + yn * yn;
 
-    dx = (2.0F * xn * xn + r) * p1 + 2.0F * xn * yn * p2;
-    dy = (2.0F * yn * yn + r) * p2 + 2.0F * xn * yn * p1;
+    dx = (2.0F * xn * xn + r) * cam.p1 + 2.0F * xn * yn * cam.p2;
+    dy = (2.0F * yn * yn + r) * cam.p2 + 2.0F * xn * yn * cam.p1;
 
-    dx += (s1 + s2 * r) * r;
-    dy += (s3 + s4 * r) * r;
+    dx += (cam.s1 + cam.s2 * r) * r;
+    dy += (cam.s3 + cam.s4 * r) * r;
 
     xn += dx;
     yn += dy;
 
-    p.x = fx * xn + cx;
-    p.y = fy * yn + cy;
+    p.x = cam.fx * xn + cam.cx;
+    p.y = cam.fy * yn + cam.cy;
 
     return p;
 }
 
-cv::Mat build_maps_variant(apply_variant_func func, const CameraCalibration& cam) {
-    cv::Mat map = cv::Mat(cv::Size(cam.resolution.width, cam.resolution.height), CV_16SC2);
+cv::Mat build_maps_variant(apply_variant_func func, const CameraCalibration& cam, cv::Mat& indices) {
+    const cv::Size map_size (cam.resolution.width, cam.resolution.height);
+    
+    cv::Mat map_x (map_size, CV_32FC1);
+    cv::Mat map_y (map_size, CV_32FC1);
+    
     cv::Point2f p;
-    cv::Vec2s v;
     size_t x, y;
+
+    cv::Mat map (map_size, CV_16SC2);
+    indices = cv::Mat(map_size, CV_16UC1);
 
     for (y = 0; y < map.rows; y++) {
         for (x = 0; x < map.cols; x++) {
-            const float xn = (x - cx) / fx;
-            const float yn = (y - cy) / fy;
+            const float xn = (x - cam.cx) / cam.fx;
+            const float yn = (y - cam.cy) / cam.fy;
 
             p = func(cam, xn, yn);
 
-            v[0] = static_cast<short>(p.x);
-            v[1] = static_cast<short>(p.y);
-
-            map.at<cv::Vec2s>(y, x) = v;
+            map_x.at<float>(y, x) = p.x;
+            map_y.at<float>(y, x) = p.y;
         }
     }
 
+    cv::convertMaps(map_x, map_y, map, indices, CV_16SC2);
     return map;
 }
 
-void remap(const cv::Mat &input, cv::Mat &output, const cv::Mat &map) {
-    cv::Vec2s v;
-    size_t x, y;
-
-    for (y = 0; y < input.rows; y++) {
-        for (x = 0; x < input.cols; x++) {
-            v = map.at<cv::Vec2s>(y, x);
-
-            output.at<uint8_t>(y, x) = input.at<uint8_t>(v[1], v[0]);
-        }
+cv::Mat build_maps(const CameraCalibration& cam, cv::Mat& indices) {
+    if (cam.num_kc >= 12) {
+        return build_maps_variant(apply_fisheye624, cam, indices);
+    } else
+    if (cam.num_kc >= 8) {
+        return build_maps_variant(apply_radial_tangential, cam, indices);
+    } else
+    if (cam.num_kc >= 6) {
+        return build_maps_variant(apply_radial_only, cam, indices);
+    } else {
+        return build_maps_variant(apply_intrinsic_only, cam, indices);
     }
 }
 
@@ -350,7 +338,7 @@ int main(int argc, const char **argv) {
     const cv::Size sensor_res (cam[0].resolution.height, cam[0].resolution.width);
     const cv::Size camera_res (cam[0].resolution.width, cam[0].resolution.height);
 
-    cv::Ptr<cv::StereoBM> stereo = nullptr; // cv::StereoBM::create(16, 15);
+    cv::Ptr<cv::StereoBM> stereo = nullptr; //*/ cv::StereoBM::create(16, 15);
 
     cv::VideoCapture cap;
     cv::Mat frame;
@@ -367,16 +355,33 @@ int main(int argc, const char **argv) {
     cv::Mat left = cv::Mat(camera_res, img.type());
     cv::Mat right = cv::Mat(camera_res, img.type());
 
-    cv::Mat map0_fisheye624 = build_maps_variant(apply_fisheye624, cam[0]);
-    cv::Mat map1_fisheye624 = build_maps_variant(apply_fisheye624, cam[1]);
+    cv::Mat indices0;
+    cv::Mat indices1;
+
+    cv::Mat map0_fisheye624 = build_maps_variant(apply_fisheye624, cam[0], indices0);
+    cv::Mat map1_fisheye624 = build_maps_variant(apply_fisheye624, cam[1], indices1);
 
     cv::Mat undist_left = cv::Mat(left.size(), left.type());
     cv::Mat undist_right = cv::Mat(right.size(), right.type());
+
+    std::time_t time_start = std::time(nullptr);
+    std::time_t time_current;
+    uint32_t frames = 0;
 
     while (true) {
         cap.read(frame);
         if (frame.empty()) {
             break;
+        }
+
+        time_current = std::time(nullptr);
+        frames++;
+
+        if (time_current > time_start) {
+            std::cout << (frames / 2) << " frames per second" << std::endl;
+
+            time_start = time_current;
+            frames = 0;
         }
 
         if (frame.cols < CAM_BUFFER_SIZE) {
@@ -434,9 +439,8 @@ int main(int argc, const char **argv) {
             continue;
         }
 
-        // cv::remap(left, undist, map_intrinsic, cv::noArray(), cv::INTER_LINEAR);
-        remap(left, undist_left, map0_fisheye624);
-        remap(right, undist_right, map1_fisheye624);
+        cv::remap(left, undist_left, map0_fisheye624, indices0, cv::INTER_LINEAR);
+        cv::remap(right, undist_right, map1_fisheye624, indices1, cv::INTER_LINEAR);
 
         if (stereo) {
             cv::Mat disparity;
@@ -444,13 +448,12 @@ int main(int argc, const char **argv) {
 
             stereo->compute(undist_left, undist_right, disparity);
 
-            disparity.convertTo(disp8, CV_8U, 255.0f / (16.0f * 16.0f));
+            disparity.convertTo(disp8, CV_8U, 1.0f / stereo->getNumDisparities());
 
             cv::imshow("Live", disp8);
         } else {
             cv::Mat row;
 
-            cv::hconcat(left, right, row);
             cv::hconcat(undist_left, undist_right, row);
 
             cv::imshow("Live", row);
