@@ -448,7 +448,7 @@ int main(int argc, const char **argv) {
 
             stereo->compute(undist_left, undist_right, disparity);
 
-            disparity.convertTo(disp8, CV_8U, 1.0f / stereo->getNumDisparities());
+            disparity.convertTo(disp8, CV_8U, 1.0f / (stereo->getNumDisparities() * 16.0f));
 
             cv::imshow("Live", disp8);
         } else {
