@@ -83,6 +83,37 @@ struct CameraCalibration {
     };
 };
 
+void calculate_camera_matrices(const CameraCalibration& cam, cv::Mat& K, cv::Mat& D) {
+    K = cv::Mat::eye(3, 3, CV_32FC1);
+    D = cv::Mat::zeros(1, 12, CV_32FC1);
+
+    K.at<float>(0, 0) = cam.fx;
+    K.at<float>(1, 1) = cam.fy;
+    K.at<float>(0, 2) = cam.cx;
+    K.at<float>(1, 2) = cam.cy;
+
+    if (cam.num_kc >= 6) {
+        D.at<float>(0, 0) = cam.k1;
+        D.at<float>(0, 1) = cam.k2;
+        D.at<float>(0, 4) = cam.k3;
+        D.at<float>(0, 5) = cam.k4;
+        D.at<float>(0, 6) = cam.k5;
+        D.at<float>(0, 7) = cam.k6;
+    }
+
+    if (cam.num_kc >= 8) {
+        D.at<float>(0, 2) = cam.p1;
+        D.at<float>(0, 3) = cam.p2;
+    }
+
+    if (cam.num_kc >= 12) {
+        D.at<float>(0, 8) = cam.s1;
+        D.at<float>(0, 9) = cam.s2;
+        D.at<float>(0, 10) = cam.s3;
+        D.at<float>(0, 11) = cam.s4;
+    }
+}
+
 typedef cv::Point2f (*apply_variant_func)(const CameraCalibration& cam, float xn, float yn);
 
 cv::Point2f apply_intrinsic_only(const CameraCalibration& cam, float xn, float yn) {
@@ -354,6 +385,12 @@ int main(int argc, const char **argv) {
     cv::Mat img = cv::Mat(sensor_res, CV_8UC1);
     cv::Mat left = cv::Mat(camera_res, img.type());
     cv::Mat right = cv::Mat(camera_res, img.type());
+
+    cv::Mat K [2];
+    cv::Mat D [2];
+
+    calculate_camera_matrices(cam[0], K[0], D[0]);
+    calculate_camera_matrices(cam[1], K[1], D[1]);
 
     cv::Mat indices0;
     cv::Mat indices1;
