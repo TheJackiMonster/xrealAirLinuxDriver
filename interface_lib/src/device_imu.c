@@ -1152,6 +1152,28 @@ const device_imu_camera_sensor_type* device_imu_camera_get_sensor(const device_i
 	return &(camera->sensors[index]);
 }
 
+device_imu_mat3x3_type device_imu_sensor_get_rotation(const device_imu_camera_sensor_type *sensor) {
+	device_imu_mat3x3_type rotation;
+	rotation.m[0] = sensor->cameraMisalignment.array[0][0];
+	rotation.m[1] = sensor->cameraMisalignment.array[0][1];
+	rotation.m[2] = sensor->cameraMisalignment.array[0][2];
+	rotation.m[3] = sensor->cameraMisalignment.array[1][0];
+	rotation.m[4] = sensor->cameraMisalignment.array[1][1];
+	rotation.m[5] = sensor->cameraMisalignment.array[1][2];
+	rotation.m[6] = sensor->cameraMisalignment.array[2][0];
+	rotation.m[7] = sensor->cameraMisalignment.array[2][1];
+	rotation.m[8] = sensor->cameraMisalignment.array[2][2];
+	return rotation;
+}
+
+device_imu_vec3_type device_imu_sensor_get_position(const device_imu_camera_sensor_type *sensor) {
+	device_imu_vec3_type position;
+	position.x = sensor->cameraOffset.axis.x;
+	position.y = sensor->cameraOffset.axis.y;
+	position.z = sensor->cameraOffset.axis.z;
+	return position;
+}
+
 device_imu_size_type device_imu_sensor_get_resolution(const device_imu_camera_sensor_type *sensor) {
 	device_imu_size_type resolution;
 	resolution.width = sensor->resolution[0];

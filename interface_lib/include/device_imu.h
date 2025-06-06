@@ -124,6 +124,10 @@ struct device_imu_euler_t {
 	float yaw;
 };
 
+struct device_imu_mat3x3_t {
+	float m [9];
+};
+
 struct device_imu_size_t {
 	uint16_t width;
 	uint16_t height;
@@ -144,6 +148,7 @@ typedef struct device_imu_vec2_t device_imu_vec2_type;
 typedef struct device_imu_vec3_t device_imu_vec3_type;
 typedef struct device_imu_quat_t device_imu_quat_type;
 typedef struct device_imu_euler_t device_imu_euler_type;
+typedef struct device_imu_mat3x3_t device_imu_mat3x3_type;
 typedef struct device_imu_size_t device_imu_size_type;
 
 typedef void (*device_imu_event_callback)(
@@ -202,6 +207,10 @@ const device_imu_camera_type* device_imu_get_camera(const device_imu_type *devic
 uint32_t device_imu_camera_get_num_of_sensors(const device_imu_camera_type *camera);
 
 const device_imu_camera_sensor_type* device_imu_camera_get_sensor(const device_imu_camera_type *camera, uint32_t index);
+
+device_imu_mat3x3_type device_imu_sensor_get_rotation(const device_imu_camera_sensor_type *sensor);
+
+device_imu_vec3_type device_imu_sensor_get_position(const device_imu_camera_sensor_type *sensor);
 
 device_imu_size_type device_imu_sensor_get_resolution(const device_imu_camera_sensor_type *sensor);
 

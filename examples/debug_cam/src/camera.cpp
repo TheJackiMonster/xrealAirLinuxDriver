@@ -22,13 +22,16 @@
 // THE SOFTWARE.
 //
 
+#include <cstdint>
+#include <cstring>
+#include <opencv2/core/types.hpp>
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
 #include <stdio.h>
 
 #include "device_imu.h"
 
-const uint8_t chunk_map[128] = {
+const uint8_t chunk_map [128] = {
     119, 54,  21,  0,   108, 22,  51,  63,  93, 99,  67, 7,   32,  112, 52,
     43,  14,  35,  75,  116, 64,  71,  44,  89, 18,  88, 26,  61,  70,  56,
     90,  79,  87,  120, 81,  101, 121, 17,  72, 31,  53, 124, 127, 113, 111,
@@ -38,6 +41,8 @@ const uint8_t chunk_map[128] = {
     85,  66,  42,  123, 122, 96,  11,  25,  97, 39,  6,  86,  1,   8,   82,
     92,  59,  104, 24,  15,  73,  65,  38,  58, 10,  23, 33,  55,  57,  107,
     100, 94,  27,  95,  45,  91,  4,   114};
+
+uint8_t reverse_chunk_map [128];
 
 #define CHUNK_SIZE 2400
 #define CHUNK_AMOUNT 128
@@ -51,6 +56,9 @@ const uint8_t chunk_map[128] = {
 #define CAM_IMAGE_DATA_SIZE (CAM_HEIGHT * CAM_WIDTH)
 
 struct CameraCalibration {
+    float position [3];
+    float rotation [9];
+
     struct {
         size_t width;
         size_t height;
@@ -81,11 +89,18 @@ struct CameraCalibration {
             float s4;
         };
     };
+
+    float fx_t;
+    float fy_t;
+    float cx_t;
+    float cy_t;
 };
 
-void calculate_camera_matrices(const CameraCalibration& cam, cv::Mat& K, cv::Mat& D) {
+void calculate_camera_matrices(const CameraCalibration& cam, cv::Mat& K, cv::Mat& D, cv::Mat& P, cv::Mat& R) {
     K = cv::Mat::eye(3, 3, CV_32FC1);
     D = cv::Mat::zeros(1, 12, CV_32FC1);
+    P = cv::Mat::zeros(3, 1, CV_32FC1);
+    R = cv::Mat::eye(3, 3, CV_32FC1);
 
     K.at<float>(0, 0) = cam.fx;
     K.at<float>(1, 1) = cam.fy;
@@ -112,6 +127,20 @@ void calculate_camera_matrices(const CameraCalibration& cam, cv::Mat& K, cv::Mat
         D.at<float>(0, 10) = cam.s3;
         D.at<float>(0, 11) = cam.s4;
     }
+
+    P.at<float>(0) = cam.position[0];
+    P.at<float>(1) = cam.position[1];
+    P.at<float>(2) = cam.position[2];
+
+    R.at<float>(0, 0) = cam.rotation[0];
+    R.at<float>(0, 1) = cam.rotation[1];
+    R.at<float>(0, 2) = cam.rotation[2];
+    R.at<float>(1, 0) = cam.rotation[3];
+    R.at<float>(1, 1) = cam.rotation[4];
+    R.at<float>(1, 2) = cam.rotation[5];
+    R.at<float>(2, 0) = cam.rotation[6];
+    R.at<float>(2, 1) = cam.rotation[7];
+    R.at<float>(2, 2) = cam.rotation[8];
 }
 
 typedef cv::Point2f (*apply_variant_func)(const CameraCalibration& cam, float xn, float yn);
@@ -119,14 +148,13 @@ typedef cv::Point2f (*apply_variant_func)(const CameraCalibration& cam, float xn
 cv::Point2f apply_intrinsic_only(const CameraCalibration& cam, float xn, float yn) {
     cv::Point2f p;
 
-    p.x = cam.fx * xn + cam.cx;
-    p.y = cam.fy * yn + cam.cy;
+    p.x = cam.fx_t * xn + cam.cx_t;
+    p.y = cam.fy_t * yn + cam.cy_t;
 
     return p;
 }
 
 cv::Point2f apply_radial_only(const CameraCalibration& cam, float xn, float yn) {
-    cv::Point2f p;
     float r, sp, cp;
     float th, th_dist;
 
@@ -156,14 +184,10 @@ cv::Point2f apply_radial_only(const CameraCalibration& cam, float xn, float yn) 
     xn = th_dist * cp;
     yn = th_dist * sp;
 
-    p.x = cam.fx * xn + cam.cx;
-    p.y = cam.fy * yn + cam.cy;
-
-    return p;
+    return apply_intrinsic_only(cam, xn, yn);
 }
 
 cv::Point2f apply_radial_tangential(const CameraCalibration& cam, float xn, float yn) {
-    cv::Point2f p;
     float r, sp, cp;
     float th, th_dist;
     float dx, dy;
@@ -202,14 +226,10 @@ cv::Point2f apply_radial_tangential(const CameraCalibration& cam, float xn, floa
     xn += dx;
     yn += dy;
 
-    p.x = cam.fx * xn + cam.cx;
-    p.y = cam.fy * yn + cam.cy;
-
-    return p;
+    return apply_intrinsic_only(cam, xn, yn);
 }
 
 cv::Point2f apply_fisheye624(const CameraCalibration& cam, float xn, float yn) {
-    cv::Point2f p;
     float r, sp, cp;
     float th, th_dist;
     float dx, dy;
@@ -253,10 +273,7 @@ cv::Point2f apply_fisheye624(const CameraCalibration& cam, float xn, float yn) {
     xn += dx;
     yn += dy;
 
-    p.x = cam.fx * xn + cam.cx;
-    p.y = cam.fy * yn + cam.cy;
-
-    return p;
+    return apply_intrinsic_only(cam, xn, yn);
 }
 
 cv::Mat build_maps_variant(apply_variant_func func, const CameraCalibration& cam, cv::Mat& indices) {
@@ -305,6 +322,9 @@ int main(int argc, const char **argv) {
     CameraCalibration cam [2];
     device_imu_type dev;
 
+    memset(&(cam[0]), 0, sizeof(cam[0]));
+    memset(&(cam[1]), 0, sizeof(cam[1]));
+
     const char *video_filename = "/dev/video0";
 
     if (argc > 1) {
@@ -330,6 +350,9 @@ int main(int argc, const char **argv) {
 
             const device_imu_camera_sensor_type *sensor = device_imu_camera_get_sensor(camera, i);
 
+            const device_imu_vec3_type position = device_imu_sensor_get_position(sensor);
+            const device_imu_mat3x3_type rotation = device_imu_sensor_get_rotation(sensor);
+
             const device_imu_size_type resolution = device_imu_sensor_get_resolution(sensor);
 
             const device_imu_vec2_type cc = device_imu_sensor_get_cc(sensor);
@@ -339,6 +362,9 @@ int main(int argc, const char **argv) {
             if (DEVICE_IMU_ERROR_NO_ERROR != device_imu_sensor_get_kc(sensor, &num_kc, nullptr)) {
                 continue;
             }
+
+            memcpy(cam[i].position, (const float*) &(position), sizeof(float) * 3);
+            memcpy(cam[i].rotation, (const float*) &(rotation), sizeof(float) * 9);
 
             cam[i].resolution.width = resolution.width;
             cam[i].resolution.height = resolution.height;
@@ -356,6 +382,12 @@ int main(int argc, const char **argv) {
             }
 
             device_imu_sensor_get_kc(sensor, &num_kc, cam[i].kc);
+
+            cam[i].fx_t = cam[i].fx;
+            cam[i].fy_t = cam[i].fy;
+
+            cam[i].cx_t = cam[i].cx;
+            cam[i].cy_t = cam[i].cy;
         }
     }
 
@@ -369,7 +401,14 @@ int main(int argc, const char **argv) {
     const cv::Size sensor_res (cam[0].resolution.height, cam[0].resolution.width);
     const cv::Size camera_res (cam[0].resolution.width, cam[0].resolution.height);
 
-    cv::Ptr<cv::StereoBM> stereo = nullptr; //*/ cv::StereoBM::create(16, 15);
+    const float sigmaColor = 50.0F;
+    const float sigmaSpace = 25.0F;
+
+    cv::Ptr<cv::StereoBM> stereo = nullptr;
+
+    if ((argc > 2) && (0 == strcmp(argv[2], "--depth"))) {
+        stereo = cv::StereoBM::create(16, 9);
+    }
 
     cv::VideoCapture cap;
     cv::Mat frame;
@@ -386,14 +425,33 @@ int main(int argc, const char **argv) {
     cv::Mat left = cv::Mat(camera_res, img.type());
     cv::Mat right = cv::Mat(camera_res, img.type());
 
+    for (size_t i = 0; i < CHUNK_AMOUNT; i++) {
+        reverse_chunk_map[chunk_map[i]] = i;
+    }
+
     cv::Mat K [2];
     cv::Mat D [2];
+    cv::Mat P [2];
+    cv::Mat R [2];
 
-    calculate_camera_matrices(cam[0], K[0], D[0]);
-    calculate_camera_matrices(cam[1], K[1], D[1]);
+    calculate_camera_matrices(cam[0], K[0], D[0], P[0], R[0]);
+    calculate_camera_matrices(cam[1], K[1], D[1], P[1], R[1]);
+
+    cv::Mat cR = R[0].inv() * R[1];
+    cv::Mat cT = P[1] - P[0];
+
+    cv::Mat Q;
+
+    cv::stereoRectify(K[0], D[0], K[1], D[1], camera_res, cR, cT, R[0], R[1], P[0], P[1], Q);
 
     cv::Mat indices0;
     cv::Mat indices1;
+
+    cam[0].cx_t -= P[0].at<double>(0, 3);
+    cam[0].cy_t -= P[0].at<double>(1, 3);
+
+    cam[1].cx_t -= P[1].at<double>(0, 3);
+    cam[1].cy_t -= P[1].at<double>(1, 3);
 
     cv::Mat map0_fisheye624 = build_maps_variant(apply_fisheye624, cam[0], indices0);
     cv::Mat map1_fisheye624 = build_maps_variant(apply_fisheye624, cam[1], indices1);
@@ -401,24 +459,13 @@ int main(int argc, const char **argv) {
     cv::Mat undist_left = cv::Mat(left.size(), left.type());
     cv::Mat undist_right = cv::Mat(right.size(), right.type());
 
-    std::time_t time_start = std::time(nullptr);
-    std::time_t time_current;
+    uint64_t t_last = 0;
     uint32_t frames = 0;
 
     while (true) {
         cap.read(frame);
         if (frame.empty()) {
             break;
-        }
-
-        time_current = std::time(nullptr);
-        frames++;
-
-        if (time_current > time_start) {
-            std::cout << (frames / 2) << " frames per second" << std::endl;
-
-            time_start = time_current;
-            frames = 0;
         }
 
         if (frame.cols < CAM_BUFFER_SIZE) {
@@ -429,12 +476,25 @@ int main(int argc, const char **argv) {
         uint8_t *data = img.ptr();
 
         const uint8_t *header = blocks + CAM_IMAGE_DATA_SIZE;
+        const size_t header_len = CAM_BUFFER_SIZE - CAM_IMAGE_DATA_SIZE;
 
-        uint64_t t_ns = *((const uint64_t *)(header + 0x00));
-        uint64_t t_ms = *((const uint64_t *)(header + 0x3E));
+        uint64_t t_eye = *((const uint64_t *)(header + 0x00));
+        uint64_t t_frame = *((const uint64_t *)(header + 0x3E));
 
         uint16_t seq = *((const uint16_t *)(header + 0x12));
+        uint32_t aperture = *((const uint32_t *)(header + 0x16));
+        uint16_t exposure = *((const uint16_t *)(header + 0x1A));
+        uint64_t number = *((const uint64_t *)(header + 0x33));
         uint8_t is_right = *(header + 0x3B);
+
+        frames++;
+
+        if ((t_frame - t_last) > 1000000000L) {
+            std::cout << (frames / 2) << " frames per second" << std::endl;
+
+            t_last = t_frame;
+            frames = 0;
+        }
 
         size_t offset = 0;
         size_t sum = CHUNK_SUM_LEN * 0xFF + 1;
@@ -452,46 +512,51 @@ int main(int argc, const char **argv) {
             }
         }
 
-        for (size_t i = 0; i < CHUNK_AMOUNT; i++) {
-            if (chunk_map[i] == offset) {
-                offset = i;
-                break;
-            }
-        }
+        offset = reverse_chunk_map[offset];
 
         for (size_t i = 0; i < CHUNK_AMOUNT; i++) {
-            size_t src_idx = CHUNK_SIZE * chunk_map[(offset + i) % CHUNK_AMOUNT];
-            size_t dst_idx = CHUNK_SIZE * i;
+            const size_t src_idx = CHUNK_SIZE * chunk_map[(offset + i) % CHUNK_AMOUNT];
+            const size_t dst_idx = CHUNK_SIZE * i;
 
             std::memcpy(data + dst_idx, blocks + src_idx, CHUNK_SIZE);
         }
 
         if (is_right) {
-            cv::rotate(img, right, cv::ROTATE_90_CLOCKWISE);
+            cv::Mat filtered;
+
+            cv::bilateralFilter(img, filtered, 5, sigmaColor, sigmaSpace);
+            cv::rotate(filtered, right, cv::ROTATE_90_CLOCKWISE);
+            cv::remap(right, undist_right, map1_fisheye624, indices1, cv::INTER_LINEAR);
+
+            if (undist_left.empty()) {
+                continue;
+            }
         } else {
-            cv::rotate(img, left, cv::ROTATE_90_COUNTERCLOCKWISE);
+            cv::Mat filtered;
+
+            cv::bilateralFilter(img, filtered, 5, sigmaColor, sigmaSpace);
+            cv::rotate(filtered, left, cv::ROTATE_90_COUNTERCLOCKWISE);
+            cv::remap(left, undist_left, map0_fisheye624, indices0, cv::INTER_LINEAR);
+            
+            if (undist_right.empty()) {
+                continue;
+            }
         }
 
-        if ((left.empty()) || (right.empty())) {
-            continue;
-        }
-
-        cv::remap(left, undist_left, map0_fisheye624, indices0, cv::INTER_LINEAR);
-        cv::remap(right, undist_right, map1_fisheye624, indices1, cv::INTER_LINEAR);
-
-        if (stereo) {
-            cv::Mat disparity;
-            cv::Mat disp8;
-
-            stereo->compute(undist_left, undist_right, disparity);
-
-            disparity.convertTo(disp8, CV_8U, 1.0f / (stereo->getNumDisparities() * 16.0f));
-
-            cv::imshow("Live", disp8);
-        } else {
+        {
             cv::Mat row;
 
-            cv::hconcat(undist_left, undist_right, row);
+            if (stereo) {
+                cv::Mat disparity;
+                stereo->compute(undist_left, undist_right, disparity);
+                disparity.convertTo(row, CV_8U, 128.0f / (stereo->getNumDisparities() * 16.0f));
+            } else {
+                cv::hconcat(undist_left, undist_right, row);
+                
+                for (size_t i = 0; i < 640; i += 40) {
+                    cv::line(row, cv::Point(0, i), cv::Point(960, i), cv::Scalar(255, 0, 0));
+                }
+            }
 
             cv::imshow("Live", row);
         }
