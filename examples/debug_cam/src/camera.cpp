@@ -97,50 +97,50 @@ struct CameraCalibration {
 };
 
 void calculate_camera_matrices(const CameraCalibration& cam, cv::Mat& K, cv::Mat& D, cv::Mat& P, cv::Mat& R) {
-    K = cv::Mat::eye(3, 3, CV_32FC1);
-    D = cv::Mat::zeros(1, 12, CV_32FC1);
-    P = cv::Mat::zeros(3, 1, CV_32FC1);
-    R = cv::Mat::eye(3, 3, CV_32FC1);
+    K = cv::Mat::eye(3, 3, CV_64FC1);
+    D = cv::Mat::zeros(1, 12, CV_64FC1);
+    P = cv::Mat::zeros(3, 1, CV_64FC1);
+    R = cv::Mat::eye(3, 3, CV_64FC1);
 
-    K.at<float>(0, 0) = cam.fx;
-    K.at<float>(1, 1) = cam.fy;
-    K.at<float>(0, 2) = cam.cx;
-    K.at<float>(1, 2) = cam.cy;
+    K.at<double>(0, 0) = cam.fx;
+    K.at<double>(1, 1) = cam.fy;
+    K.at<double>(0, 2) = cam.cx;
+    K.at<double>(1, 2) = cam.cy;
 
     if (cam.num_kc >= 6) {
-        D.at<float>(0, 0) = cam.k1;
-        D.at<float>(0, 1) = cam.k2;
-        D.at<float>(0, 4) = cam.k3;
-        D.at<float>(0, 5) = cam.k4;
-        D.at<float>(0, 6) = cam.k5;
-        D.at<float>(0, 7) = cam.k6;
+        D.at<double>(0, 0) = cam.k1;
+        D.at<double>(0, 1) = cam.k2;
+        D.at<double>(0, 4) = cam.k3;
+        D.at<double>(0, 5) = cam.k4;
+        D.at<double>(0, 6) = cam.k5;
+        D.at<double>(0, 7) = cam.k6;
     }
 
     if (cam.num_kc >= 8) {
-        D.at<float>(0, 2) = cam.p1;
-        D.at<float>(0, 3) = cam.p2;
+        D.at<double>(0, 2) = cam.p1;
+        D.at<double>(0, 3) = cam.p2;
     }
 
     if (cam.num_kc >= 12) {
-        D.at<float>(0, 8) = cam.s1;
-        D.at<float>(0, 9) = cam.s2;
-        D.at<float>(0, 10) = cam.s3;
-        D.at<float>(0, 11) = cam.s4;
+        D.at<double>(0, 8) = cam.s1;
+        D.at<double>(0, 9) = cam.s2;
+        D.at<double>(0, 10) = cam.s3;
+        D.at<double>(0, 11) = cam.s4;
     }
 
-    P.at<float>(0) = cam.position[0];
-    P.at<float>(1) = cam.position[1];
-    P.at<float>(2) = cam.position[2];
+    P.at<double>(0) = cam.position[0];
+    P.at<double>(1) = cam.position[1];
+    P.at<double>(2) = cam.position[2];
 
-    R.at<float>(0, 0) = cam.rotation[0];
-    R.at<float>(0, 1) = cam.rotation[1];
-    R.at<float>(0, 2) = cam.rotation[2];
-    R.at<float>(1, 0) = cam.rotation[3];
-    R.at<float>(1, 1) = cam.rotation[4];
-    R.at<float>(1, 2) = cam.rotation[5];
-    R.at<float>(2, 0) = cam.rotation[6];
-    R.at<float>(2, 1) = cam.rotation[7];
-    R.at<float>(2, 2) = cam.rotation[8];
+    R.at<double>(0, 0) = cam.rotation[0];
+    R.at<double>(0, 1) = cam.rotation[1];
+    R.at<double>(0, 2) = cam.rotation[2];
+    R.at<double>(1, 0) = cam.rotation[3];
+    R.at<double>(1, 1) = cam.rotation[4];
+    R.at<double>(1, 2) = cam.rotation[5];
+    R.at<double>(2, 0) = cam.rotation[6];
+    R.at<double>(2, 1) = cam.rotation[7];
+    R.at<double>(2, 2) = cam.rotation[8];
 }
 
 typedef cv::Point2f (*apply_variant_func)(const CameraCalibration& cam, float xn, float yn);
@@ -279,8 +279,8 @@ cv::Point2f apply_fisheye624(const CameraCalibration& cam, float xn, float yn) {
 cv::Mat build_maps_variant(apply_variant_func func, const CameraCalibration& cam, cv::Mat& indices) {
     const cv::Size map_size (cam.resolution.width, cam.resolution.height);
     
-    cv::Mat map_x (map_size, CV_32FC1);
-    cv::Mat map_y (map_size, CV_32FC1);
+    cv::Mat map_x (map_size, CV_64FC1);
+    cv::Mat map_y (map_size, CV_64FC1);
     
     cv::Point2f p;
     size_t x, y;
@@ -295,8 +295,8 @@ cv::Mat build_maps_variant(apply_variant_func func, const CameraCalibration& cam
 
             p = func(cam, xn, yn);
 
-            map_x.at<float>(y, x) = p.x;
-            map_y.at<float>(y, x) = p.y;
+            map_x.at<double>(y, x) = p.x;
+            map_y.at<double>(y, x) = p.y;
         }
     }
 
