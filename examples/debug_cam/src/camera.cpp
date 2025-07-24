@@ -279,8 +279,8 @@ cv::Point2f apply_fisheye624(const CameraCalibration& cam, float xn, float yn) {
 cv::Mat build_maps_variant(apply_variant_func func, const CameraCalibration& cam, cv::Mat& indices) {
     const cv::Size map_size (cam.resolution.width, cam.resolution.height);
     
-    cv::Mat map_x (map_size, CV_64FC1);
-    cv::Mat map_y (map_size, CV_64FC1);
+    cv::Mat map_x (map_size, CV_32FC1);
+    cv::Mat map_y (map_size, CV_32FC1);
     
     cv::Point2f p;
     size_t x, y;
@@ -295,8 +295,8 @@ cv::Mat build_maps_variant(apply_variant_func func, const CameraCalibration& cam
 
             p = func(cam, xn, yn);
 
-            map_x.at<double>(y, x) = p.x;
-            map_y.at<double>(y, x) = p.y;
+            map_x.at<float>(y, x) = p.x;
+            map_y.at<float>(y, x) = p.y;
         }
     }
 
