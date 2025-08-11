@@ -186,6 +186,8 @@ device_imu_error_type device_imu_load_calibration(device_imu_type* device, const
 
 device_imu_error_type device_imu_save_calibration(device_imu_type* device, const char* path);
 
+device_imu_error_type device_imu_export_calibration(device_imu_type* device, const char *path);
+
 device_imu_error_type device_imu_clear(device_imu_type* device);
 
 device_imu_error_type device_imu_calibrate(device_imu_type* device, uint32_t iterations, bool gyro, bool accel, bool magnet);

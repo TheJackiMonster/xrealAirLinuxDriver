@@ -190,6 +190,59 @@ static bool recv_payload_msg(device_imu_type* device, uint8_t msgid, uint16_t le
 	return true;
 }
 
+static device_imu_error_type load_device_imu_calibration_data(device_imu_type* device, uint32_t* len, char** data) {
+	if (!device) {
+		return DEVICE_IMU_ERROR_NO_DEVICE;
+	}
+
+	if ((!len) || (!data)) {
+		return DEVICE_IMU_ERROR_NO_ALLOCATION;
+	}
+
+	if (!send_payload_msg(device, DEVICE_IMU_MSG_GET_CAL_DATA_LENGTH, 0, NULL)) {
+		device_imu_error("Failed sending payload to get calibration data length");
+		return DEVICE_IMU_ERROR_PAYLOAD_FAILED;
+	}
+
+	*len = 0;
+	if (!recv_payload_msg(device, DEVICE_IMU_MSG_GET_CAL_DATA_LENGTH, 4, (uint8_t*) len)) {
+		*data = NULL;
+		return DEVICE_IMU_ERROR_LOADING_FAILED;
+	}
+
+	const uint16_t max_packet_size = (device->max_payload_size - 8);
+	*data = malloc(*len + 1);
+
+	if (!(*data)) {
+		return DEVICE_IMU_ERROR_NO_ALLOCATION;
+	}
+	
+	uint32_t position = 0;
+	while (position < *len) {
+		const uint32_t remaining = (*len - position);
+
+		if (!send_payload_msg(device, DEVICE_IMU_MSG_CAL_DATA_GET_NEXT_SEGMENT, 0, NULL)) {
+			break;
+		}
+		
+		const uint16_t next = (remaining > max_packet_size? max_packet_size : remaining);
+		
+		if (!recv_payload_msg(device, DEVICE_IMU_MSG_CAL_DATA_GET_NEXT_SEGMENT, next, (uint8_t*) (*data) + position)) {
+			break;
+		}
+		
+		position += next;
+	}
+
+	if (position > *len) {
+		(*data)[*len] = '\0';
+	} else {
+		(*data)[position] = '\0';
+	}
+
+	return DEVICE_IMU_ERROR_NO_ERROR;
+}
+
 static FusionVector json_object_get_vector(struct json_object* obj) {
 	if ((!json_object_is_type(obj, json_type_array)) ||
 		(json_object_array_length(obj) != 3)) {
@@ -366,36 +419,11 @@ device_imu_error_type device_imu_open(device_imu_type* device, device_imu_event_
 	memset(device->calibration, 0, sizeof(device_imu_calibration_type));
 
 	device_imu_reset_calibration(device);
-
-	if (!send_payload_msg(device, DEVICE_IMU_MSG_GET_CAL_DATA_LENGTH, 0, NULL)) {
-		device_imu_error("Failed sending payload to get calibration data length");
-		return DEVICE_IMU_ERROR_PAYLOAD_FAILED;
-	}
 	
 	uint32_t calibration_len = 0;
-	if (recv_payload_msg(device, DEVICE_IMU_MSG_GET_CAL_DATA_LENGTH, 4, (uint8_t*) &calibration_len)) {
-		const uint16_t max_packet_size = (device->max_payload_size - 8);
-		char* calibration_data = malloc(calibration_len + 1);
-		
-		uint32_t position = 0;
-		while (position < calibration_len) {
-			const uint32_t remaining = (calibration_len - position);
+	char *calibration_data = NULL;
 
-			if (!send_payload_msg(device, DEVICE_IMU_MSG_CAL_DATA_GET_NEXT_SEGMENT, 0, NULL)) {
-				break;
-			}
-			
-			const uint16_t next = (remaining > max_packet_size? max_packet_size : remaining);
-			
-			if (!recv_payload_msg(device, DEVICE_IMU_MSG_CAL_DATA_GET_NEXT_SEGMENT, next, (uint8_t*) calibration_data + position)) {
-				break;
-			}
-			
-			position += next;
-		}
-
-		calibration_data[calibration_len] = '\0';
-		
+	if (DEVICE_IMU_ERROR_NO_ERROR == load_device_imu_calibration_data(device, &calibration_len, &calibration_data)) {
 		struct json_tokener* tokener = json_tokener_new();
 		struct json_object* root = json_tokener_parse_ex(tokener, calibration_data, calibration_len);
 		struct json_object* imu = json_object_object_get(root, "IMU");
@@ -618,6 +646,60 @@ device_imu_error_type device_imu_save_calibration(device_imu_type* device, const
 		return DEVICE_IMU_ERROR_FILE_NOT_CLOSED;
 	}
 	
+	return result;
+}
+
+device_imu_error_type device_imu_export_calibration(device_imu_type* device, const char *path) {
+	if ((!send_payload_msg_signal(device, DEVICE_IMU_MSG_START_IMU_DATA, 0x0)) ||
+        (!recv_payload_msg(device, DEVICE_IMU_MSG_START_IMU_DATA, 0, NULL))) {
+		device_imu_error("Failed sending payload to stop imu data stream");
+		return DEVICE_IMU_ERROR_PAYLOAD_FAILED;
+	}
+
+	device_imu_clear(device);
+
+	uint32_t calibration_len = 0;
+	char *calibration_data = NULL;
+
+	device_imu_error_type result = load_device_imu_calibration_data(device, &calibration_len, &calibration_data);
+
+	if (DEVICE_IMU_ERROR_NO_ERROR != result) {
+		goto free_data;
+	}
+
+	FILE* file = fopen(path, "w");
+	if (!file) {
+		device_imu_error("No file opened");
+		result = DEVICE_IMU_ERROR_FILE_NOT_OPEN;
+		goto free_data;
+	}
+
+	size_t count;
+	count = fwrite(calibration_data, 1, calibration_len, file);
+	
+	if (calibration_len != count) {
+		device_imu_error("Not fully saved");
+		result = DEVICE_IMU_ERROR_SAVING_FAILED;
+	}
+
+	if (0 != fclose(file)) {
+		device_imu_error("No file closed");
+		result = DEVICE_IMU_ERROR_FILE_NOT_CLOSED;
+	}
+
+free_data:
+	if (calibration_data) {
+		free(calibration_data);
+	}
+
+	device_imu_clear(device);
+
+	if ((!send_payload_msg_signal(device, DEVICE_IMU_MSG_START_IMU_DATA, 0x1)) ||
+      	(!recv_payload_msg(device, DEVICE_IMU_MSG_START_IMU_DATA, 0, NULL))) {
+		device_imu_error("Failed sending payload to stop imu data stream");
+		result = DEVICE_IMU_ERROR_PAYLOAD_FAILED;
+	}
+
 	return result;
 }
 

@@ -51,6 +51,10 @@ int main(int argc, const char** argv) {
 	if (DEVICE_IMU_ERROR_NO_ERROR != device_imu_open(&dev, test)) {
 		return 1;
 	}
+
+	if ((argc > 1) && (DEVICE_IMU_ERROR_NO_ERROR != device_imu_export_calibration(&dev, argv[1]))) {
+		return 2;
+	}
 	
 	device_imu_clear(&dev);
 	while (DEVICE_IMU_ERROR_NO_ERROR == device_imu_read(&dev, -1));
