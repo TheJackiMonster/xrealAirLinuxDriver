@@ -21,6 +21,7 @@ jobs:
           sudo apt-get -qq update
           sudo apt-get -qq install ninja-build cmake extra-cmake-modules g++
           sudo apt-get -qq install libhidapi-dev libjson-c-dev libudev-dev libusb-1.0-0-dev
+          sudo apt-get -qq libopencv-dev libopencv-core-dev libopencv-videoio-dev
 
       - name: Build framework
         run: |

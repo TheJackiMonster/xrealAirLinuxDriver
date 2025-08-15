@@ -43,6 +43,7 @@ You can build the binary using `cmake` and there are only three dependencies for
  - [libudev](https://github.com/mcatalancid/libudev)
  - [libusb](https://github.com/libusb/libusb)
  - [Fusion](https://github.com/xioTechnologies/Fusion)
+ - [OpenCV](https://github.com/opencv/opencv)
 
 Fusion is a sensor fusion library which is integrated as git submodule. So when you checkout the 
 repository, just update the submodules to get it. The libraries `hidapi` and `json-c` should be 
