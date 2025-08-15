@@ -1,0 +1,28 @@
+name: Linux Build
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the current branch
+        uses: actions/checkout@v3
+
+      - name: Load submodules
+        run: |
+          git submodule init
+          git submodule update
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get -qq update
+          sudo apt-get -qq install ninja-build cmake extra-cmake-modules g++
+          sudo apt-get -qq install libhidapi-dev libjson-c-dev
+
+      - name: Build framework
+        run: |
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -S . -B build
+          cmake --build build
