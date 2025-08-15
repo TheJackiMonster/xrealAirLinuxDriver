@@ -42,6 +42,7 @@
 
 #include "crc32.h"
 #include "hid_ids.h"
+#include "endian_compat.h"
 
 #define GRAVITY_G (9.806f)
 

@@ -36,6 +36,8 @@
 
 #include "crc32.h"
 #include "hid_ids.h"
+#include "endian_compat.h"
+
 
 #ifndef NDEBUG
 #define device_mcu_error(msg) fprintf(stderr, "ERROR: %s\n", msg)
