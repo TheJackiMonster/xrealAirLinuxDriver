@@ -1,5 +1,7 @@
 # Custom user-space driver for the Xreal Air, Xreal Air 2, Xreal Air 2 Pro and Xreal Air 2 Ultra to use it on Linux
 
+[![linux-build-on-github](https://github.com/thejackimonster/xrealAirLinuxDriver/workflows/Linux%20Build/badge.svg)](https://github.com/TheJackiMonster/xrealAirLinuxDriver/actions/workflows/linux.yml)
+
 ## Information before use
 
 The code is provided as is and it's free to use. However the contributors can neither guarantee that 
